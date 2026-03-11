@@ -1,8 +1,6 @@
 name: tilt_sender
 description: Tilt Steering Controller
-
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -12,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   sensors_plus: ^4.0.2
-  flutter_bluetooth_serial: ^0.4.0
+  flutter_blue_plus: ^1.31.0
 
 dev_dependencies:
   flutter_test:

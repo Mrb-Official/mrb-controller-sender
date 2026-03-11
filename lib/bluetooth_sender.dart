@@ -1,29 +1,50 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class BluetoothSender {
-  BluetoothConnection? _connection;
-  bool get isConnected => _connection?.isConnected ?? false;
+  BluetoothDevice? _device;
+  BluetoothCharacteristic? _characteristic;
+  bool _isConnected = false;
+  bool get isConnected => _isConnected;
 
   // Devices scan karo
-  static Future<List<BluetoothDevice>> scanDevices() async {
-    final devices = await FlutterBluetoothSerial.instance.getBondedDevices();
-    return devices;
+  static Future<List<ScanResult>> scanDevices() async {
+    List<ScanResult> results = [];
+    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+    final subscription = FlutterBluePlus.scanResults.listen((r) {
+      results = r;
+    });
+    await Future.delayed(const Duration(seconds: 4));
+    await FlutterBluePlus.stopScan();
+    subscription.cancel();
+    return results;
   }
 
-  // Connect karo
   Future<bool> connect(BluetoothDevice device) async {
     try {
-      _connection = await BluetoothConnection.toAddress(device.address);
+      await device.connect(timeout: const Duration(seconds: 10));
+      _device = device;
+      
+      // Services discover karo
+      final services = await device.discoverServices();
+      for (var service in services) {
+        for (var char in service.characteristics) {
+          if (char.properties.write || char.properties.writeWithoutResponse) {
+            _characteristic = char;
+            break;
+          }
+        }
+      }
+      _isConnected = true;
       return true;
     } catch (e) {
+      _isConnected = false;
       return false;
     }
   }
 
   void sendTilt(double tiltX) {
-    // -10 to 10 range ko -1.0 to 1.0 mein convert
     final axis = (tiltX / 10.0).clamp(-1.0, 1.0);
     _send('STEER:${axis.toStringAsFixed(3)}');
   }
@@ -32,13 +53,14 @@ class BluetoothSender {
   void sendBrake(bool on) => _send(on ? 'BRK:ON' : 'BRK:OFF');
 
   void _send(String msg) {
-    if (!isConnected) return;
+    if (!_isConnected || _characteristic == null) return;
     try {
-      _connection!.output.add(utf8.encode('$msg\n'));
+      _characteristic!.write(utf8.encode(msg), withoutResponse: true);
     } catch (e) {}
   }
 
   void dispose() {
-    _connection?.close();
+    _device?.disconnect();
+    _isConnected = false;
   }
 }

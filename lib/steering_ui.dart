@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'sensor_service.dart';
 import 'bluetooth_sender.dart';
 
@@ -15,28 +15,28 @@ class _SteeringUIState extends State<SteeringUI> {
   final BluetoothSender _bt = BluetoothSender();
   StreamSubscription<SensorData>? _sensorSub;
 
-  List<BluetoothDevice> _devices = [];
-  BluetoothDevice? _selectedDevice;
+  List<ScanResult> _devices = [];
   bool _isConnected = false;
   bool _isScanning = false;
   bool _gasPressed = false;
   bool _brakePressed = false;
   double _tilt = 0.0;
   String _status = 'Scan karo aur connect karo!';
+  String _connectedName = '';
 
   Future<void> _scan() async {
     setState(() { _isScanning = true; _status = 'Scanning...'; });
-    final devices = await BluetoothSender.scanDevices();
+    final results = await BluetoothSender.scanDevices();
     setState(() {
-      _devices = devices;
+      _devices = results.where((r) => r.device.platformName.isNotEmpty).toList();
       _isScanning = false;
-      _status = devices.isEmpty ? 'Koi device nahi mila!' : '${devices.length} devices mile!';
+      _status = _devices.isEmpty ? 'Koi device nahi mila!' : '${_devices.length} devices mile!';
     });
   }
 
-  Future<void> _connect(BluetoothDevice device) async {
+  Future<void> _connect(ScanResult result) async {
     setState(() => _status = 'Connecting...');
-    final ok = await _bt.connect(device);
+    final ok = await _bt.connect(result.device);
     if (ok) {
       _sensor.start();
       _sensorSub = _sensor.stream.listen((data) {
@@ -45,8 +45,8 @@ class _SteeringUIState extends State<SteeringUI> {
       });
       setState(() {
         _isConnected = true;
-        _selectedDevice = device;
-        _status = 'Connected: ${device.name}';
+        _connectedName = result.device.platformName;
+        _status = 'Connected: $_connectedName';
       });
     } else {
       setState(() => _status = 'Connect fail! Try again');
@@ -78,13 +78,11 @@ class _SteeringUIState extends State<SteeringUI> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Title
               const Text('🎮 TILT CONTROLLER',
                 style: TextStyle(color: Color(0xFF00D4FF), fontSize: 20,
                     fontWeight: FontWeight.bold, letterSpacing: 3)),
               const SizedBox(height: 16),
 
-              // Status
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
@@ -98,7 +96,6 @@ class _SteeringUIState extends State<SteeringUI> {
               ),
               const SizedBox(height: 12),
 
-              // Scan Button
               if (!_isConnected) ...[
                 SizedBox(
                   width: double.infinity,
@@ -121,7 +118,6 @@ class _SteeringUIState extends State<SteeringUI> {
                 ),
                 const SizedBox(height: 8),
 
-                // Device List
                 if (_devices.isNotEmpty)
                   Container(
                     decoration: BoxDecoration(
@@ -129,20 +125,19 @@ class _SteeringUIState extends State<SteeringUI> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
-                      children: _devices.map((d) => ListTile(
+                      children: _devices.map((r) => ListTile(
                         leading: const Icon(Icons.phone_android,
                             color: Color(0xFF00D4FF)),
-                        title: Text(d.name ?? 'Unknown',
+                        title: Text(r.device.platformName,
                             style: const TextStyle(color: Colors.white)),
-                        subtitle: Text(d.address,
+                        subtitle: Text(r.device.remoteId.str,
                             style: const TextStyle(color: Colors.white38)),
-                        onTap: () => _connect(d),
+                        onTap: () => _connect(r),
                       )).toList(),
                     ),
                   ),
               ],
 
-              // Disconnect button
               if (_isConnected)
                 SizedBox(
                   width: double.infinity,
@@ -158,91 +153,50 @@ class _SteeringUIState extends State<SteeringUI> {
                 ),
 
               const SizedBox(height: 16),
-
-              // Tilt Bar
               _buildTiltBar(),
-
               const Spacer(),
 
-              // Controls — Brake | GAS
               Row(
                 children: [
-                  // BRAKE
                   Expanded(
                     child: GestureDetector(
-                      onTapDown: (_) {
-                        setState(() => _brakePressed = true);
-                        _bt.sendBrake(true);
-                      },
-                      onTapUp: (_) {
-                        setState(() => _brakePressed = false);
-                        _bt.sendBrake(false);
-                      },
-                      onPanEnd: (_) {
-                        setState(() => _brakePressed = false);
-                        _bt.sendBrake(false);
-                      },
+                      onTapDown: (_) { setState(() => _brakePressed = true); _bt.sendBrake(true); },
+                      onTapUp: (_) { setState(() => _brakePressed = false); _bt.sendBrake(false); },
+                      onPanEnd: (_) { setState(() => _brakePressed = false); _bt.sendBrake(false); },
                       child: Container(
                         height: 120,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          color: _brakePressed
-                              ? Colors.redAccent
-                              : const Color(0xFF1A1A2E),
+                          color: _brakePressed ? Colors.redAccent : const Color(0xFF1A1A2E),
                           border: Border.all(
-                            color: _brakePressed
-                                ? Colors.red
-                                : const Color(0xFF333355),
-                            width: 2,
-                          ),
+                            color: _brakePressed ? Colors.red : const Color(0xFF333355),
+                            width: 2),
                         ),
-                        child: Center(
-                          child: Text(
-                            _brakePressed ? '🛑' : '🔴',
-                            style: const TextStyle(fontSize: 40),
-                          ),
-                        ),
+                        child: Center(child: Text(
+                          _brakePressed ? '🛑' : '🔴',
+                          style: const TextStyle(fontSize: 40))),
                       ),
                     ),
                   ),
-
-                  // GAS
                   Expanded(
                     child: GestureDetector(
-                      onTapDown: (_) {
-                        setState(() => _gasPressed = true);
-                        _bt.sendGas(true);
-                      },
-                      onTapUp: (_) {
-                        setState(() => _gasPressed = false);
-                        _bt.sendGas(false);
-                      },
-                      onPanEnd: (_) {
-                        setState(() => _gasPressed = false);
-                        _bt.sendGas(false);
-                      },
+                      onTapDown: (_) { setState(() => _gasPressed = true); _bt.sendGas(true); },
+                      onTapUp: (_) { setState(() => _gasPressed = false); _bt.sendGas(false); },
+                      onPanEnd: (_) { setState(() => _gasPressed = false); _bt.sendGas(false); },
                       child: Container(
                         height: 120,
                         margin: const EdgeInsets.only(left: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          color: _gasPressed
-                              ? const Color(0xFFFF4500)
-                              : const Color(0xFF1A1A2E),
+                          color: _gasPressed ? const Color(0xFFFF4500) : const Color(0xFF1A1A2E),
                           border: Border.all(
-                            color: _gasPressed
-                                ? const Color(0xFFFF6B35)
-                                : const Color(0xFF333355),
-                            width: 2,
-                          ),
+                            color: _gasPressed ? const Color(0xFFFF6B35) : const Color(0xFF333355),
+                            width: 2),
                         ),
-                        child: Center(
-                          child: Text(
-                            _gasPressed ? '🔥' : '🚗',
-                            style: const TextStyle(fontSize: 40),
-                          ),
-                        ),
+                        child: Center(child: Text(
+                          _gasPressed ? '🔥' : '🚗',
+                          style: const TextStyle(fontSize: 40))),
                       ),
                     ),
                   ),
@@ -267,8 +221,7 @@ class _SteeringUIState extends State<SteeringUI> {
           children: [
             const Text('◀ LEFT', style: TextStyle(color: Colors.white38, fontSize: 12)),
             Text(_tilt.toStringAsFixed(2),
-                style: const TextStyle(color: Colors.white54,
-                    fontSize: 12, fontFamily: 'monospace')),
+                style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace')),
             const Text('RIGHT ▶', style: TextStyle(color: Colors.white38, fontSize: 12)),
           ],
         ),
