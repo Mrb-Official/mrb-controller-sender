@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'sensor_service.dart';
-import 'bluetooth_sender.dart';
+import 'udp_sender.dart';
 
 class SteeringUI extends StatefulWidget {
   const SteeringUI({super.key});
@@ -12,62 +11,42 @@ class SteeringUI extends StatefulWidget {
 
 class _SteeringUIState extends State<SteeringUI> {
   final SensorService _sensor = SensorService();
-  final BluetoothSender _bt = BluetoothSender();
+  UdpSender? _udp;
   StreamSubscription<SensorData>? _sensorSub;
+  final _ipController = TextEditingController(text: '10.136.131.137');
 
-  List<ScanResult> _devices = [];
   bool _isConnected = false;
-  bool _isScanning = false;
   bool _gasPressed = false;
   bool _brakePressed = false;
   double _tilt = 0.0;
-  String _status = 'Scan karo aur connect karo!';
-  String _connectedName = '';
+  String _status = 'IP daalo aur connect karo!';
 
-  Future<void> _scan() async {
-    setState(() { _isScanning = true; _status = 'Scanning...'; });
-    final results = await BluetoothSender.scanDevices();
-    setState(() {
-      _devices = results.where((r) => r.device.platformName.isNotEmpty).toList();
-      _isScanning = false;
-      _status = _devices.isEmpty ? 'Koi device nahi mila!' : '${_devices.length} devices mile!';
-    });
-  }
-
-  Future<void> _connect(ScanResult result) async {
-    setState(() => _status = 'Connecting...');
-    final ok = await _bt.connect(result.device);
-    if (ok) {
+  Future<void> _connect() async {
+    if (_ipController.text.isEmpty) return;
+    _udp = UdpSender(receiverIp: _ipController.text);
+    await _udp!.connect();
+    if (_udp!.isConnected) {
       _sensor.start();
       _sensorSub = _sensor.stream.listen((data) {
-        _bt.sendTilt(data.tiltX);
+        _udp?.sendTilt(data.tiltX);
         if (mounted) setState(() => _tilt = data.tiltX);
       });
       setState(() {
         _isConnected = true;
-        _connectedName = result.device.platformName;
-        _status = 'Connected: $_connectedName';
+        _status = 'Connected: ${_ipController.text}';
       });
-    } else {
-      setState(() => _status = 'Connect fail! Try again');
     }
   }
 
   void _disconnect() {
     _sensorSub?.cancel();
     _sensor.stop();
-    _bt.dispose();
-    setState(() {
-      _isConnected = false;
-      _status = 'Disconnected';
-    });
+    _udp?.dispose();
+    setState(() { _isConnected = false; _status = 'Disconnected'; });
   }
 
   @override
-  void dispose() {
-    _disconnect();
-    super.dispose();
-  }
+  void dispose() { _disconnect(); _ipController.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -83,59 +62,41 @@ class _SteeringUIState extends State<SteeringUI> {
                     fontWeight: FontWeight.bold, letterSpacing: 3)),
               const SizedBox(height: 16),
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111122),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(_status,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                  textAlign: TextAlign.center),
-              ),
-              const SizedBox(height: 12),
-
+              // IP Field
               if (!_isConnected) ...[
+                TextField(
+                  controller: _ipController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Receiver IP',
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon: const Icon(Icons.wifi, color: Color(0xFF00D4FF)),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Color(0xFF333355)),
+                      borderRadius: BorderRadius.circular(8)),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Color(0xFF00D4FF)),
+                      borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _isScanning ? null : _scan,
-                    icon: _isScanning
-                        ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2,
-                                color: Color(0xFF00D4FF)))
-                        : const Icon(Icons.bluetooth_searching,
-                            color: Color(0xFF00D4FF)),
-                    label: Text(_isScanning ? 'Scanning...' : 'BT Scan',
-                        style: const TextStyle(color: Color(0xFF00D4FF))),
-                    style: OutlinedButton.styleFrom(
+                  child: ElevatedButton.icon(
+                    onPressed: _connect,
+                    icon: const Icon(Icons.link),
+                    label: const Text('CONNECT'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF001A2A),
+                      foregroundColor: const Color(0xFF00D4FF),
                       side: const BorderSide(color: Color(0xFF00D4FF)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-
-                if (_devices.isNotEmpty)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111122),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: _devices.map((r) => ListTile(
-                        leading: const Icon(Icons.phone_android,
-                            color: Color(0xFF00D4FF)),
-                        title: Text(r.device.platformName,
-                            style: const TextStyle(color: Colors.white)),
-                        subtitle: Text(r.device.remoteId.str,
-                            style: const TextStyle(color: Colors.white38)),
-                        onTap: () => _connect(r),
-                      )).toList(),
-                    ),
-                  ),
               ],
 
               if (_isConnected)
@@ -143,60 +104,81 @@ class _SteeringUIState extends State<SteeringUI> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _disconnect,
-                    icon: const Icon(Icons.bluetooth_disabled),
+                    icon: const Icon(Icons.link_off),
                     label: const Text('DISCONNECT'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2A1A1A),
                       foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111122),
+                  borderRadius: BorderRadius.circular(8)),
+                child: Text(_status,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  textAlign: TextAlign.center),
+              ),
+              const SizedBox(height: 12),
               _buildTiltBar(),
               const Spacer(),
 
+              // Brake + Gas buttons
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTapDown: (_) { setState(() => _brakePressed = true); _bt.sendBrake(true); },
-                      onTapUp: (_) { setState(() => _brakePressed = false); _bt.sendBrake(false); },
-                      onPanEnd: (_) { setState(() => _brakePressed = false); _bt.sendBrake(false); },
+                      onTapDown: (_) { setState(() => _brakePressed = true); _udp?.sendBrake(true); },
+                      onTapUp: (_) { setState(() => _brakePressed = false); _udp?.sendBrake(false); },
+                      onPanEnd: (_) { setState(() => _brakePressed = false); _udp?.sendBrake(false); },
                       child: Container(
-                        height: 120,
+                        height: 130,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           color: _brakePressed ? Colors.redAccent : const Color(0xFF1A1A2E),
                           border: Border.all(
-                            color: _brakePressed ? Colors.red : const Color(0xFF333355),
-                            width: 2),
+                            color: _brakePressed ? Colors.red : const Color(0xFF333355), width: 2),
                         ),
-                        child: Center(child: Text(
-                          _brakePressed ? '🛑' : '🔴',
-                          style: const TextStyle(fontSize: 40))),
+                        child: Center(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(_brakePressed ? '🛑' : '🔴', style: const TextStyle(fontSize: 40)),
+                            const Text('BRAKE', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          ],
+                        )),
                       ),
                     ),
                   ),
                   Expanded(
                     child: GestureDetector(
-                      onTapDown: (_) { setState(() => _gasPressed = true); _bt.sendGas(true); },
-                      onTapUp: (_) { setState(() => _gasPressed = false); _bt.sendGas(false); },
-                      onPanEnd: (_) { setState(() => _gasPressed = false); _bt.sendGas(false); },
+                      onTapDown: (_) { setState(() => _gasPressed = true); _udp?.sendGas(true); },
+                      onTapUp: (_) { setState(() => _gasPressed = false); _udp?.sendGas(false); },
+                      onPanEnd: (_) { setState(() => _gasPressed = false); _udp?.sendGas(false); },
                       child: Container(
-                        height: 120,
+                        height: 130,
                         margin: const EdgeInsets.only(left: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           color: _gasPressed ? const Color(0xFFFF4500) : const Color(0xFF1A1A2E),
                           border: Border.all(
-                            color: _gasPressed ? const Color(0xFFFF6B35) : const Color(0xFF333355),
-                            width: 2),
+                            color: _gasPressed ? const Color(0xFFFF6B35) : const Color(0xFF333355), width: 2),
                         ),
-                        child: Center(child: Text(
-                          _gasPressed ? '🔥' : '🚗',
-                          style: const TextStyle(fontSize: 40))),
+                        child: Center(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(_gasPressed ? '🔥' : '🚗', style: const TextStyle(fontSize: 40)),
+                            const Text('GAS', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          ],
+                        )),
                       ),
                     ),
                   ),
@@ -214,7 +196,6 @@ class _SteeringUIState extends State<SteeringUI> {
     final clamped = _tilt.clamp(-10.0, 10.0);
     final fraction = (clamped + 10) / 20;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -230,8 +211,7 @@ class _SteeringUIState extends State<SteeringUI> {
           height: 10,
           decoration: BoxDecoration(
             color: const Color(0xFF111122),
-            borderRadius: BorderRadius.circular(5),
-          ),
+            borderRadius: BorderRadius.circular(5)),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
             widthFactor: fraction,
@@ -240,8 +220,7 @@ class _SteeringUIState extends State<SteeringUI> {
                 borderRadius: BorderRadius.circular(5),
                 gradient: const LinearGradient(
                   colors: [Color(0xFF0066FF), Color(0xFF00D4FF), Color(0xFFFF4500)],
-                  stops: [0.0, 0.5, 1.0],
-                ),
+                  stops: [0.0, 0.5, 1.0]),
               ),
             ),
           ),

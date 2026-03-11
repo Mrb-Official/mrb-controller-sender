@@ -1,18 +1,14 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:udp/udp.dart';
 
 class UdpSender {
   final String receiverIp;
   final int port;
-  static const Duration _sendInterval = Duration(milliseconds: 20);
   UDP? _socket;
   bool _isConnected = false;
-  DateTime _lastSendTime = DateTime.now();
+  bool get isConnected => _isConnected;
 
   UdpSender({required this.receiverIp, this.port = 9876});
-  bool get isConnected => _isConnected;
 
   Future<void> connect() async {
     try {
@@ -24,23 +20,18 @@ class UdpSender {
   }
 
   void sendTilt(double tiltX) {
-    final now = DateTime.now();
-    if (now.difference(_lastSendTime) >= _sendInterval) {
-      _send('STEER:${tiltX.toStringAsFixed(3)}');
-      _lastSendTime = now;
-    }
+    final axis = (tiltX / 10.0).clamp(-1.0, 1.0);
+    _send('STEER:${axis.toStringAsFixed(3)}');
   }
 
-  void sendAccelerator(bool isPressed) {
-    _send(isPressed ? 'RACE:ON' : 'RACE:OFF');
-  }
+  void sendGas(bool on) => _send(on ? 'GAS:ON' : 'GAS:OFF');
+  void sendBrake(bool on) => _send(on ? 'BRK:ON' : 'BRK:OFF');
 
-  void _send(String payload) {
+  void _send(String msg) {
     if (_socket == null || !_isConnected) return;
     try {
-      final data = utf8.encode(payload);
       _socket!.send(
-        data,
+        utf8.encode(msg),
         Endpoint.unicast(
           InternetAddress(receiverIp),
           port: Port(port),
