@@ -209,7 +209,7 @@ class _SteeringUIState extends State<SteeringUI>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('CONNECT', fontWeight: FontWeight.bold),
+            child: const Text('CONNECT', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
