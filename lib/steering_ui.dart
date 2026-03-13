@@ -81,7 +81,7 @@ class _SteeringUIState extends State<SteeringUI> {
 
   Widget _buildConnectScreen() {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: const Color(0xFFFFF8E1),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: SingleChildScrollView(
@@ -97,11 +97,11 @@ class _SteeringUIState extends State<SteeringUI> {
                   color: Color(0xFF00D4FF), size: 72),
                 const SizedBox(height: 16),
                 const Text('MRB Controller',
-                  style: TextStyle(color: Colors.white, fontSize: 26,
+                  style: TextStyle(color: Colors.brown.shade900, fontSize: 26,
                     fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text('Tilt Steering',
-                  style: TextStyle(color: Colors.white38, fontSize: 14)),
+                  style: TextStyle(color: Colors.brown.shade300, fontSize: 14)),
                 const SizedBox(height: 56),
                 TextField(
                   controller: _ipController,
@@ -111,7 +111,7 @@ class _SteeringUIState extends State<SteeringUI> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Receiver IP Address',
-                    labelStyle: const TextStyle(color: Colors.white38),
+                    labelStyle: const TextStyle(color: Colors.brown.shade300),
                     prefixIcon: const Icon(Icons.wifi, color: Color(0xFF00D4FF)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -133,7 +133,7 @@ class _SteeringUIState extends State<SteeringUI> {
                     label: const Text('Connect',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF00D4FF),
+                      backgroundColor: const Color(0xFFD4A800),
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -151,7 +151,7 @@ class _SteeringUIState extends State<SteeringUI> {
   Widget _buildControllerScreen() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: const Color(0xFFFFF8E1),
       body: SafeArea(
         child: Column(
           children: [
@@ -164,7 +164,7 @@ class _SteeringUIState extends State<SteeringUI> {
                     color: Color(0xFF00D4FF), size: 20),
                   const SizedBox(width: 8),
                   const Text('MRB Controller',
-                    style: TextStyle(color: Colors.white70, fontSize: 14,
+                    style: TextStyle(color: Colors.brown.shade600, fontSize: 14,
                       fontWeight: FontWeight.w600)),
                   const Spacer(),
                   Container(width: 8, height: 8,
@@ -172,7 +172,7 @@ class _SteeringUIState extends State<SteeringUI> {
                       shape: BoxShape.circle, color: Color(0xFF00FF88))),
                   const SizedBox(width: 6),
                   Text(_ipController.text,
-                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                    style: const TextStyle(color: Colors.brown.shade300, fontSize: 12)),
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: () async {
@@ -180,12 +180,12 @@ class _SteeringUIState extends State<SteeringUI> {
                         MaterialPageRoute(builder: (_) => const ButtonEditor()));
                       _loadButtons();
                     },
-                    child: const Icon(Icons.tune, color: Colors.white38, size: 22),
+                    child: const Icon(Icons.tune, color: Colors.brown.shade300, size: 22),
                   ),
                   const SizedBox(width: 16),
                   GestureDetector(
                     onTap: _disconnect,
-                    child: const Icon(Icons.link_off, color: Colors.white38, size: 22),
+                    child: const Icon(Icons.link_off, color: Colors.brown.shade300, size: 22),
                   ),
                 ],
               ),
@@ -216,7 +216,7 @@ class _SteeringUIState extends State<SteeringUI> {
                         child: LinearProgressIndicator(
                           value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
                           minHeight: 6,
-                          backgroundColor: const Color(0xFF111122),
+                          backgroundColor: const Color(0xFFFFF3CD),
                           valueColor: AlwaysStoppedAnimation<Color>(
                             Color.lerp(const Color(0xFF0066FF),
                               const Color(0xFFFF4500),
@@ -266,24 +266,24 @@ class _SteeringUIState extends State<SteeringUI> {
                           borderRadius: BorderRadius.circular(12),
                           color: pressed
                             ? const Color(0xFF1A2A4A)
-                            : const Color(0xFF111122),
+                            : const Color(0xFFFFF3CD),
                           border: Border.all(
                             color: pressed
-                              ? const Color(0xFF00D4FF)
-                              : const Color(0xFF222244)),
+                              ? const Color(0xFFD4A800)
+                              : const Color(0xFFE8D48A)),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.gamepad_outlined,
                               color: pressed
-                                ? const Color(0xFF00D4FF)
-                                : Colors.white38,
+                                ? const Color(0xFFD4A800)
+                                : Colors.brown.shade300,
                               size: 20),
                             const SizedBox(height: 2),
                             Text(btn.name,
                               style: TextStyle(
-                                color: pressed ? Colors.white : Colors.white38,
+                                color: pressed ? Colors.white : Colors.brown.shade300,
                                 fontSize: 9, fontWeight: FontWeight.w600),
                               overflow: TextOverflow.ellipsis),
                           ],
@@ -313,24 +313,24 @@ class _SteeringUIState extends State<SteeringUI> {
                             borderRadius: BorderRadius.circular(16),
                             color: _brakePressed
                               ? const Color(0xFF3A0000)
-                              : const Color(0xFF111122),
+                              : const Color(0xFFFFF3CD),
                             border: Border.all(
                               color: _brakePressed
                                 ? Colors.redAccent
-                                : const Color(0xFF222244),
+                                : const Color(0xFFE8D48A),
                               width: 2)),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.pan_tool,
                                 color: _brakePressed
-                                  ? Colors.redAccent : Colors.white38,
+                                  ? Colors.redAccent : Colors.brown.shade300,
                                 size: 32),
                               const SizedBox(height: 6),
                               Text('BRAKE',
                                 style: TextStyle(
                                   color: _brakePressed
-                                    ? Colors.redAccent : Colors.white38,
+                                    ? Colors.redAccent : Colors.brown.shade300,
                                   fontSize: 12, fontWeight: FontWeight.w700,
                                   letterSpacing: 2)),
                             ],
@@ -350,24 +350,24 @@ class _SteeringUIState extends State<SteeringUI> {
                             borderRadius: BorderRadius.circular(16),
                             color: _gasPressed
                               ? const Color(0xFF1A2A00)
-                              : const Color(0xFF111122),
+                              : const Color(0xFFFFF3CD),
                             border: Border.all(
                               color: _gasPressed
                                 ? const Color(0xFF88FF00)
-                                : const Color(0xFF222244),
+                                : const Color(0xFFE8D48A),
                               width: 2)),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.speed,
                                 color: _gasPressed
-                                  ? const Color(0xFF88FF00) : Colors.white38,
+                                  ? const Color(0xFF88FF00) : Colors.brown.shade300,
                                 size: 32),
                               const SizedBox(height: 6),
                               Text('GAS',
                                 style: TextStyle(
                                   color: _gasPressed
-                                    ? const Color(0xFF88FF00) : Colors.white38,
+                                    ? const Color(0xFF88FF00) : Colors.brown.shade300,
                                   fontSize: 12, fontWeight: FontWeight.w700,
                                   letterSpacing: 2)),
                             ],
@@ -397,10 +397,10 @@ class _WheelPainter extends CustomPainter {
     final r  = size.width / 2 - 8;
 
     canvas.drawCircle(Offset(cx, cy), r,
-      Paint()..color = const Color(0xFF00D4FF)
+      Paint()..color = const Color(0xFFD4A800)
         ..style = PaintingStyle.stroke..strokeWidth = 10);
     canvas.drawCircle(Offset(cx, cy), r * 0.32,
-      Paint()..color = const Color(0xFF00D4FF)
+      Paint()..color = const Color(0xFFD4A800)
         ..style = PaintingStyle.stroke..strokeWidth = 5);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.62),

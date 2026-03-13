@@ -5,8 +5,7 @@ import 'steering_ui.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
+    DeviceOrientation.portraitUp,
   ]);
   runApp(const TiltSteeringApp());
 }
@@ -16,14 +15,15 @@ class TiltSteeringApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tilt Steering',
+      title: 'MRB Controller',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0A0A0F),
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFF00D4FF),
-          secondary: const Color(0xFFFF4500),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFD4A800),
+          brightness: Brightness.light,
         ),
+        scaffoldBackgroundColor: const Color(0xFFFFF8E1),
       ),
       home: const SteeringUI(),
     );
