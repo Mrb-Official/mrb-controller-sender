@@ -33,9 +33,13 @@ class UdpSender {
   void sendGas(bool isPressed) => _send(isPressed ? 'RACE:ON' : 'RACE:OFF');
   void sendBrake(bool isPressed) => _send(isPressed ? 'BRK:ON' : 'BRK:OFF');
 
-  // Custom button: BTN:<name>:ON / BTN:<name>:OFF
-  void sendCustomButton(String name, bool isPressed) {
+  void sendCustomButton(String name, bool isPressed) =>
     _send(isPressed ? 'BTN:$name:ON' : 'BTN:$name:OFF');
+
+  void sendButtonConfig(List<Map<String, dynamic>> buttons) {
+    for (final btn in buttons) {
+      _send('CFG:${btn['name']}:${btn['x']}:${btn['y']}:${btn['isHold'] ? '1' : '0'}');
+    }
   }
 
   void _send(String payload) {
