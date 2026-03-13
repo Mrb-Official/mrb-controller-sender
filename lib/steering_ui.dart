@@ -25,7 +25,6 @@ class _SteeringUIState extends State<SteeringUI> {
   double _tilt = 0.0;
   List<CustomButton> _customButtons = [];
   final Map<String, bool> _customPressed = {};
-  bool _firstLaunch = true;
 
   @override
   void initState() {
@@ -35,11 +34,7 @@ class _SteeringUIState extends State<SteeringUI> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    final ip = prefs.getString('receiver_ip') ?? '';
-    setState(() {
-      _ipController.text = ip;
-      _firstLaunch = ip.isEmpty;
-    });
+    setState(() => _ipController.text = prefs.getString('receiver_ip') ?? '');
     _loadButtons();
   }
 
@@ -64,7 +59,7 @@ class _SteeringUIState extends State<SteeringUI> {
         _udp?.sendTilt(data.tiltX);
         if (mounted) setState(() => _tilt = data.tiltX);
       });
-      setState(() { _isConnected = true; _firstLaunch = false; });
+      setState(() => _isConnected = true);
     }
   }
 
@@ -84,67 +79,77 @@ class _SteeringUIState extends State<SteeringUI> {
     return _buildControllerScreen();
   }
 
-  // ── CONNECT SCREEN ──────────────────────────────────────────
   Widget _buildConnectScreen() {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A1A),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.sports_esports, color: Color(0xFF00D4FF), size: 64),
-              const SizedBox(height: 16),
-              const Text('MRB Controller',
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              const Text('Tilt Steering',
-                style: TextStyle(color: Colors.white38, fontSize: 14)),
-              const SizedBox(height: 48),
-              TextField(
-                controller: _ipController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Receiver IP Address',
-                  labelStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.wifi, color: Color(0xFF00D4FF)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF333355))),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF00D4FF))),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: _connect,
-                  icon: const Icon(Icons.link),
-                  label: const Text('Connect', style: TextStyle(fontSize: 16)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF00D4FF),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height -
+                MediaQuery.of(context).padding.top -
+                MediaQuery.of(context).padding.bottom - 48,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.sports_esports,
+                  color: Color(0xFF00D4FF), size: 72),
+                const SizedBox(height: 16),
+                const Text('MRB Controller',
+                  style: TextStyle(color: Colors.white, fontSize: 26,
+                    fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text('Tilt Steering',
+                  style: TextStyle(color: Colors.white38, fontSize: 14)),
+                const SizedBox(height: 56),
+                TextField(
+                  controller: _ipController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _connect(),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Receiver IP Address',
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon: const Icon(Icons.wifi, color: Color(0xFF00D4FF)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF333355))),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF00D4FF))),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: _connect,
+                    icon: const Icon(Icons.link),
+                    label: const Text('Connect',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF00D4FF),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── CONTROLLER SCREEN ────────────────────────────────────────
   Widget _buildControllerScreen() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A1A),
       body: SafeArea(
@@ -155,36 +160,32 @@ class _SteeringUIState extends State<SteeringUI> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.sports_esports, color: Color(0xFF00D4FF), size: 20),
+                  const Icon(Icons.sports_esports,
+                    color: Color(0xFF00D4FF), size: 20),
                   const SizedBox(width: 8),
                   const Text('MRB Controller',
-                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+                    style: TextStyle(color: Colors.white70, fontSize: 14,
+                      fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  Container(
-                    width: 8, height: 8,
+                  Container(width: 8, height: 8,
                     decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: Color(0xFF00FF88)),
-                  ),
+                      shape: BoxShape.circle, color: Color(0xFF00FF88))),
                   const SizedBox(width: 6),
                   Text(_ipController.text,
                     style: const TextStyle(color: Colors.white38, fontSize: 12)),
                   const SizedBox(width: 12),
-                  IconButton(
-                    icon: const Icon(Icons.tune, color: Colors.white38, size: 20),
-                    onPressed: () async {
+                  GestureDetector(
+                    onTap: () async {
                       await Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const ButtonEditor()));
                       _loadButtons();
                     },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    child: const Icon(Icons.tune, color: Colors.white38, size: 22),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.link_off, color: Colors.white38, size: 20),
-                    onPressed: _disconnect,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: _disconnect,
+                    child: const Icon(Icons.link_off, color: Colors.white38, size: 22),
                   ),
                 ],
               ),
@@ -192,16 +193,16 @@ class _SteeringUIState extends State<SteeringUI> {
 
             // Steering wheel
             Expanded(
-              flex: 3,
+              flex: 4,
               child: Center(
                 child: CustomPaint(
-                  size: const Size(180, 180),
+                  size: const Size(190, 190),
                   painter: _WheelPainter(angle: angle),
                 ),
               ),
             ),
 
-            // Tilt indicator
+            // Tilt bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               child: Row(
@@ -232,7 +233,7 @@ class _SteeringUIState extends State<SteeringUI> {
             // Custom buttons
             if (_customButtons.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: Wrap(
                   spacing: 8, runSpacing: 8,
                   children: _customButtons.map((btn) {
@@ -258,8 +259,9 @@ class _SteeringUIState extends State<SteeringUI> {
                         setState(() => _customPressed[btn.id] = false);
                         _udp?.sendCustomButton(btn.name, false);
                       },
-                      child: Container(
-                        width: 72, height: 64,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 80),
+                        width: 72, height: 60,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           color: pressed
@@ -273,9 +275,11 @@ class _SteeringUIState extends State<SteeringUI> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.gamepad, color: pressed
-                              ? const Color(0xFF00D4FF)
-                              : Colors.white38, size: 22),
+                            Icon(Icons.gamepad_outlined,
+                              color: pressed
+                                ? const Color(0xFF00D4FF)
+                                : Colors.white38,
+                              size: 20),
                             const SizedBox(height: 2),
                             Text(btn.name,
                               style: TextStyle(
@@ -292,12 +296,11 @@ class _SteeringUIState extends State<SteeringUI> {
 
             // Brake + Gas
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 child: Row(
                   children: [
-                    // BRAKE
                     Expanded(
                       child: GestureDetector(
                         onTapDown: (_) { setState(() => _brakePressed = true); _udp?.sendBrake(true); },
@@ -315,18 +318,19 @@ class _SteeringUIState extends State<SteeringUI> {
                               color: _brakePressed
                                 ? Colors.redAccent
                                 : const Color(0xFF222244),
-                              width: 2),
-                          ),
+                              width: 2)),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.emergency_share_rounded,
-                                color: _brakePressed ? Colors.redAccent : Colors.white38,
+                              Icon(Icons.pan_tool,
+                                color: _brakePressed
+                                  ? Colors.redAccent : Colors.white38,
                                 size: 32),
                               const SizedBox(height: 6),
                               Text('BRAKE',
                                 style: TextStyle(
-                                  color: _brakePressed ? Colors.redAccent : Colors.white38,
+                                  color: _brakePressed
+                                    ? Colors.redAccent : Colors.white38,
                                   fontSize: 12, fontWeight: FontWeight.w700,
                                   letterSpacing: 2)),
                             ],
@@ -334,7 +338,6 @@ class _SteeringUIState extends State<SteeringUI> {
                         ),
                       ),
                     ),
-                    // GAS
                     Expanded(
                       child: GestureDetector(
                         onTapDown: (_) { setState(() => _gasPressed = true); _udp?.sendGas(true); },
@@ -352,22 +355,19 @@ class _SteeringUIState extends State<SteeringUI> {
                               color: _gasPressed
                                 ? const Color(0xFF88FF00)
                                 : const Color(0xFF222244),
-                              width: 2),
-                          ),
+                              width: 2)),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.speed,
                                 color: _gasPressed
-                                  ? const Color(0xFF88FF00)
-                                  : Colors.white38,
+                                  ? const Color(0xFF88FF00) : Colors.white38,
                                 size: 32),
                               const SizedBox(height: 6),
                               Text('GAS',
                                 style: TextStyle(
                                   color: _gasPressed
-                                    ? const Color(0xFF88FF00)
-                                    : Colors.white38,
+                                    ? const Color(0xFF88FF00) : Colors.white38,
                                   fontSize: 12, fontWeight: FontWeight.w700,
                                   letterSpacing: 2)),
                             ],
@@ -396,32 +396,31 @@ class _WheelPainter extends CustomPainter {
     final cy = size.height / 2;
     final r  = size.width / 2 - 8;
 
-    final ring = Paint()..color = const Color(0xFF00D4FF)
-      ..style = PaintingStyle.stroke..strokeWidth = 10;
-    final spoke = Paint()..color = const Color(0xFF334466)
-      ..style = PaintingStyle.stroke..strokeWidth = 7;
-    final center = Paint()..color = const Color(0xFF00D4FF)
-      ..style = PaintingStyle.stroke..strokeWidth = 5;
-    final arc = Paint()..color = const Color(0x3300D4FF)
-      ..style = PaintingStyle.stroke..strokeWidth = 8;
-    final dot = Paint()..color = Colors.white..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(cx, cy), r, ring);
-    canvas.drawCircle(Offset(cx, cy), r * 0.32, center);
+    canvas.drawCircle(Offset(cx, cy), r,
+      Paint()..color = const Color(0xFF00D4FF)
+        ..style = PaintingStyle.stroke..strokeWidth = 10);
+    canvas.drawCircle(Offset(cx, cy), r * 0.32,
+      Paint()..color = const Color(0xFF00D4FF)
+        ..style = PaintingStyle.stroke..strokeWidth = 5);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.62),
-      -pi / 2, -angle * pi / 180, false, arc);
+      -pi / 2, -angle * pi / 180, false,
+      Paint()..color = const Color(0x3300D4FF)
+        ..style = PaintingStyle.stroke..strokeWidth = 8);
 
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(-angle * pi / 180);
+    final spoke = Paint()..color = const Color(0xFF334466)
+      ..style = PaintingStyle.stroke..strokeWidth = 7;
     for (int i = 0; i < 3; i++) {
       final a = (i * 120 - 90) * pi / 180;
       canvas.drawLine(
         Offset(r * 0.32 * cos(a), r * 0.32 * sin(a)),
         Offset(r * cos(a), r * sin(a)), spoke);
     }
-    canvas.drawCircle(Offset(0, -r + 8), 6, dot);
+    canvas.drawCircle(Offset(0, -r + 8), 6,
+      Paint()..color = Colors.white..style = PaintingStyle.fill);
     canvas.restore();
   }
 
