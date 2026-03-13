@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
@@ -20,11 +21,11 @@ class _SteeringUIState extends State<SteeringUI> {
   final _ipController = TextEditingController();
 
   bool _isConnected = false;
-  bool _gasPressed   = false;
-  bool _brakePressed = false;
   double _tilt = 0.0;
-  List<CustomButton> _customButtons = [];
-  final Map<String, bool> _customPressed = {};
+  List<CustomButton> _buttons = [];
+  final Map<String, bool> _pressed = {};
+  bool _scanning = false;
+  String _scanStatus = '';
 
   @override
   void initState() {
@@ -34,16 +35,55 @@ class _SteeringUIState extends State<SteeringUI> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _ipController.text = prefs.getString('receiver_ip') ?? '');
-    _loadButtons();
+    _ipController.text = prefs.getString('receiver_ip') ?? '';
+    await _loadButtons();
   }
 
   Future<void> _loadButtons() async {
     final btns = await ButtonStorage.load();
     setState(() {
-      _customButtons = btns;
-      for (var b in btns) _customPressed[b.id] = false;
+      _buttons = btns;
+      for (var b in btns) _pressed[b.id] = false;
     });
+  }
+
+  Future<void> _autoScan() async {
+    setState(() { _scanning = true; _scanStatus = 'Scanning...'; });
+    try {
+      final interfaces = await NetworkInterface.list();
+      String subnet = '192.168.43';
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          if (ip.startsWith('10.') || ip.startsWith('192.168.')) {
+            final parts = ip.split('.');
+            if (parts.length == 4) {
+              subnet = '${parts[0]}.${parts[1]}.${parts[2]}';
+              break;
+            }
+          }
+        }
+      }
+      setState(() => _scanStatus = 'Scanning $subnet.x...');
+      bool found = false;
+      for (int i = 1; i < 255 && !found; i++) {
+        final ip = '$subnet.$i';
+        try {
+          final socket = await Socket.connect(ip, 9876,
+            timeout: const Duration(milliseconds: 80));
+          socket.destroy();
+          setState(() {
+            _ipController.text = ip;
+            _scanStatus = 'Found: $ip ✓';
+          });
+          found = true;
+        } catch (_) {}
+      }
+      if (!found) setState(() => _scanStatus = 'Not found');
+    } catch (e) {
+      setState(() => _scanStatus = 'Error: $e');
+    }
+    setState(() => _scanning = false);
   }
 
   Future<void> _connect() async {
@@ -54,6 +94,11 @@ class _SteeringUIState extends State<SteeringUI> {
     _udp = UdpSender(receiverIp: ip);
     await _udp!.connect();
     if (_udp!.isConnected) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      // Send button config to receiver
+      _udp!.sendButtonConfig(_buttons.map((b) => {
+        'name': b.name, 'x': b.x, 'y': b.y, 'isHold': b.isHold,
+      }).toList());
       _sensor.start();
       _sensorSub = _sensor.stream.listen((data) {
         _udp?.sendTilt(data.tiltX);
@@ -70,339 +115,273 @@ class _SteeringUIState extends State<SteeringUI> {
     setState(() { _isConnected = false; _tilt = 0; });
   }
 
+  void _onDown(CustomButton btn) {
+    if (btn.isHold) {
+      setState(() => _pressed[btn.id] = true);
+      _udp?.sendCustomButton(btn.name, true);
+    }
+  }
+
+  void _onUp(CustomButton btn) {
+    if (btn.isHold) {
+      setState(() => _pressed[btn.id] = false);
+      _udp?.sendCustomButton(btn.name, false);
+    } else {
+      _udp?.sendCustomButton(btn.name, true);
+      Future.delayed(const Duration(milliseconds: 80),
+        () => _udp?.sendCustomButton(btn.name, false));
+    }
+  }
+
+  void _onCancel(CustomButton btn) {
+    setState(() => _pressed[btn.id] = false);
+    if (btn.isHold) _udp?.sendCustomButton(btn.name, false);
+  }
+
   @override
   void dispose() { _disconnect(); _ipController.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) {
-    if (!_isConnected) return _buildConnectScreen();
-    return _buildControllerScreen();
-  }
+  Widget build(BuildContext context) =>
+    _isConnected ? _buildController() : _buildConnect();
 
-  Widget _buildConnectScreen() {
+  // ── CONNECT SCREEN ──────────────────────────────
+  Widget _buildConnect() {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E1),
-      resizeToAvoidBottomInset: true,
+      backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 48),
-              const Icon(Icons.sports_esports,
-                color: Color(0xFFD4A800), size: 72),
-              const SizedBox(height: 16),
-              Text('MRB Controller',
-                style: TextStyle(
-                  color: Colors.brown.shade900, fontSize: 26,
-                  fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('Tilt Steering',
-                style: TextStyle(
-                  color: Colors.brown.shade400, fontSize: 14)),
-              const SizedBox(height: 56),
-              TextField(
-                controller: _ipController,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _connect(),
-                style: TextStyle(color: Colors.brown.shade900),
-                decoration: InputDecoration(
-                  labelText: 'Receiver IP Address',
-                  labelStyle: TextStyle(color: Colors.brown.shade400),
-                  prefixIcon: const Icon(Icons.wifi, color: Color(0xFFD4A800)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE0C96E))),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD4A800))),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Airplane style logo
+                Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 2)),
+                  child: const Icon(Icons.airplanemode_active,
+                    color: Colors.white, size: 40),
                 ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: _connect,
-                  icon: const Icon(Icons.link),
-                  label: const Text('Connect',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4A800),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 20),
+                const Text('MRB Controller',
+                  style: TextStyle(color: Colors.white, fontSize: 24,
+                    fontWeight: FontWeight.bold, letterSpacing: 1)),
+                const SizedBox(height: 4),
+                const Text('Tilt Steering',
+                  style: TextStyle(color: Colors.white38, fontSize: 13)),
+                const SizedBox(height: 40),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ipController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _connect(),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Receiver IP',
+                        hintStyle: const TextStyle(color: Colors.white24),
+                        prefixIcon: const Icon(Icons.wifi,
+                          color: Colors.white38),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.white24)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 52, height: 52,
+                    child: OutlinedButton(
+                      onPressed: _scanning ? null : _autoScan,
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        side: const BorderSide(color: Colors.white24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
+                      child: _scanning
+                        ? const SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.search,
+                            color: Colors.white54, size: 22),
+                    ),
+                  ),
+                ]),
+                if (_scanStatus.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_scanStatus,
+                      style: const TextStyle(
+                        color: Colors.white38, fontSize: 11)),
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity, height: 50,
+                  child: FilledButton.icon(
+                    onPressed: _connect,
+                    icon: const Icon(Icons.link),
+                    label: const Text('Connect',
+                      style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const ButtonEditor()));
+                    _loadButtons();
+                  },
+                  icon: const Icon(Icons.tune,
+                    color: Colors.white24, size: 16),
+                  label: const Text('Configure Buttons',
+                    style: TextStyle(color: Colors.white24, fontSize: 12)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildControllerScreen() {
+  // ── CONTROLLER SCREEN ────────────────────────────
+  Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
+    final leftBtns  = _buttons.where((b) => b.x < 1080).toList();
+    final rightBtns = _buttons.where((b) => b.x >= 1080).toList();
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E1),
+      backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Column(
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.sports_esports,
-                    color: Color(0xFFD4A800), size: 20),
-                  const SizedBox(width: 8),
-                  Text('MRB Controller',
-                    style: TextStyle(
-                      color: Colors.brown.shade700, fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  Container(width: 8, height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF00CC66))),
-                  const SizedBox(width: 6),
-                  Text(_ipController.text,
-                    style: TextStyle(
-                      color: Colors.brown.shade400, fontSize: 12)),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const ButtonEditor()));
-                      _loadButtons();
-                    },
-                    child: Icon(Icons.tune,
-                      color: Colors.brown.shade400, size: 22),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: _disconnect,
-                    child: Icon(Icons.link_off,
-                      color: Colors.brown.shade400, size: 22),
-                  ),
-                ],
+            // LEFT BUTTONS
+            SizedBox(
+              width: 90,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: leftBtns.map((b) => _buildBtn(b)).toList(),
               ),
             ),
+
+            // CENTER
             Expanded(
-              flex: 4,
-              child: Center(
-                child: CustomPaint(
-                  size: const Size(190, 190),
-                  painter: _WheelPainter(angle: angle),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              child: Row(
+              child: Column(
                 children: [
-                  Icon(Icons.arrow_back,
-                    color: Colors.brown.shade200, size: 14),
+                  // Minimal top bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                    child: Row(children: [
+                      Container(width: 6, height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF00FF88))),
+                      const SizedBox(width: 4),
+                      Text(_ipController.text,
+                        style: const TextStyle(
+                          color: Colors.white24, fontSize: 10)),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(context,
+                            MaterialPageRoute(
+                              builder: (_) => const ButtonEditor()));
+                          _loadButtons();
+                        },
+                        child: const Icon(Icons.tune,
+                          color: Colors.white24, size: 16)),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: _disconnect,
+                        child: const Icon(Icons.link_off,
+                          color: Colors.white24, size: 16)),
+                    ]),
+                  ),
+
+                  // Steering wheel
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
-                          minHeight: 6,
-                          backgroundColor: const Color(0xFFE8D48A),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Color.lerp(
-                              const Color(0xFF4488FF),
-                              const Color(0xFFFF6600),
-                              (_tilt.clamp(-10.0, 10.0) + 10) / 20)!),
-                        ),
+                    child: Center(
+                      child: CustomPaint(
+                        size: const Size(200, 200),
+                        painter: _WheelPainter(angle: angle),
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward,
-                    color: Colors.brown.shade200, size: 14),
+
+                  // Tilt bar
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
+                        minHeight: 4,
+                        backgroundColor: const Color(0xFF1A1A1A),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color.lerp(Colors.blue, Colors.orange,
+                            (_tilt.clamp(-10.0, 10.0) + 10) / 20)!),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (_customButtons.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: _customButtons.map((btn) {
-                    final pressed = _customPressed[btn.id] ?? false;
-                    return GestureDetector(
-                      onTapDown: (_) {
-                        if (btn.isHold) {
-                          setState(() => _customPressed[btn.id] = true);
-                          _udp?.sendCustomButton(btn.name, true);
-                        }
-                      },
-                      onTapUp: (_) {
-                        if (btn.isHold) {
-                          setState(() => _customPressed[btn.id] = false);
-                          _udp?.sendCustomButton(btn.name, false);
-                        } else {
-                          _udp?.sendCustomButton(btn.name, true);
-                          Future.delayed(const Duration(milliseconds: 100),
-                            () => _udp?.sendCustomButton(btn.name, false));
-                        }
-                      },
-                      onTapCancel: () {
-                        setState(() => _customPressed[btn.id] = false);
-                        _udp?.sendCustomButton(btn.name, false);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 80),
-                        width: 72, height: 60,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: pressed
-                            ? const Color(0xFFFFE082)
-                            : const Color(0xFFFFF3CD),
-                          border: Border.all(
-                            color: pressed
-                              ? const Color(0xFFD4A800)
-                              : const Color(0xFFE8D48A))),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.gamepad_outlined,
-                              color: pressed
-                                ? const Color(0xFFD4A800)
-                                : Colors.brown.shade300,
-                              size: 20),
-                            const SizedBox(height: 2),
-                            Text(btn.name,
-                              style: TextStyle(
-                                color: pressed
-                                  ? Colors.brown.shade900
-                                  : Colors.brown.shade400,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTapDown: (_) {
-                          setState(() => _brakePressed = true);
-                          _udp?.sendBrake(true);
-                        },
-                        onTapUp: (_) {
-                          setState(() => _brakePressed = false);
-                          _udp?.sendBrake(false);
-                        },
-                        onPanEnd: (_) {
-                          setState(() => _brakePressed = false);
-                          _udp?.sendBrake(false);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: _brakePressed
-                              ? const Color(0xFFFFCDD2)
-                              : const Color(0xFFFFF3CD),
-                            border: Border.all(
-                              color: _brakePressed
-                                ? Colors.redAccent
-                                : const Color(0xFFE8D48A),
-                              width: 2)),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.pan_tool,
-                                color: _brakePressed
-                                  ? Colors.redAccent
-                                  : Colors.brown.shade400,
-                                size: 32),
-                              const SizedBox(height: 6),
-                              Text('BRAKE',
-                                style: TextStyle(
-                                  color: _brakePressed
-                                    ? Colors.redAccent
-                                    : Colors.brown.shade400,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTapDown: (_) {
-                          setState(() => _gasPressed = true);
-                          _udp?.sendGas(true);
-                        },
-                        onTapUp: (_) {
-                          setState(() => _gasPressed = false);
-                          _udp?.sendGas(false);
-                        },
-                        onPanEnd: (_) {
-                          setState(() => _gasPressed = false);
-                          _udp?.sendGas(false);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          margin: const EdgeInsets.only(left: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: _gasPressed
-                              ? const Color(0xFFDCEDC8)
-                              : const Color(0xFFFFF3CD),
-                            border: Border.all(
-                              color: _gasPressed
-                                ? const Color(0xFF66BB6A)
-                                : const Color(0xFFE8D48A),
-                              width: 2)),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.speed,
-                                color: _gasPressed
-                                  ? const Color(0xFF388E3C)
-                                  : Colors.brown.shade400,
-                                size: 32),
-                              const SizedBox(height: 6),
-                              Text('GAS',
-                                style: TextStyle(
-                                  color: _gasPressed
-                                    ? const Color(0xFF388E3C)
-                                    : Colors.brown.shade400,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+
+            // RIGHT BUTTONS
+            SizedBox(
+              width: 90,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: rightBtns.map((b) => _buildBtn(b)).toList(),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBtn(CustomButton btn) {
+    final pressed = _pressed[btn.id] ?? false;
+    return GestureDetector(
+      onTapDown: (_) => _onDown(btn),
+      onTapUp: (_) => _onUp(btn),
+      onTapCancel: () => _onCancel(btn),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+        height: 60,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: pressed ? Colors.white : const Color(0xFF1A1A1A),
+          border: Border.all(
+            color: pressed ? Colors.white : Colors.white24)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(iconFromName(btn.icon),
+              color: pressed ? Colors.black : Colors.white54,
+              size: 22),
+            const SizedBox(height: 2),
+            Text(btn.name,
+              style: TextStyle(
+                color: pressed ? Colors.black : Colors.white38,
+                fontSize: 8, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -421,31 +400,32 @@ class _WheelPainter extends CustomPainter {
     final r  = size.width / 2 - 8;
 
     canvas.drawCircle(Offset(cx, cy), r,
-      Paint()..color = const Color(0xFFD4A800)
-        ..style = PaintingStyle.stroke..strokeWidth = 10);
-    canvas.drawCircle(Offset(cx, cy), r * 0.32,
-      Paint()..color = const Color(0xFFD4A800)
-        ..style = PaintingStyle.stroke..strokeWidth = 5);
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.62),
-      -pi / 2, -angle * pi / 180, false,
-      Paint()..color = const Color(0x44D4A800)
+      Paint()..color = Colors.white
         ..style = PaintingStyle.stroke..strokeWidth = 8);
+    canvas.drawCircle(Offset(cx, cy), r * 0.28,
+      Paint()..color = Colors.white
+        ..style = PaintingStyle.stroke..strokeWidth = 4);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
+      -pi / 2, -angle * pi / 180, false,
+      Paint()..color = Colors.white30
+        ..style = PaintingStyle.stroke..strokeWidth = 6);
 
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(-angle * pi / 180);
+
     final spoke = Paint()
-      ..color = const Color(0xFFBF9000)
-      ..style = PaintingStyle.stroke..strokeWidth = 7;
+      ..color = Colors.white24
+      ..style = PaintingStyle.stroke..strokeWidth = 6;
     for (int i = 0; i < 3; i++) {
       final a = (i * 120 - 90) * pi / 180;
       canvas.drawLine(
-        Offset(r * 0.32 * cos(a), r * 0.32 * sin(a)),
+        Offset(r * 0.28 * cos(a), r * 0.28 * sin(a)),
         Offset(r * cos(a), r * sin(a)), spoke);
     }
-    canvas.drawCircle(Offset(0, -r + 8), 6,
-      Paint()..color = Colors.brown.shade800..style = PaintingStyle.fill);
+    canvas.drawCircle(Offset(0, -r + 8), 5,
+      Paint()..color = Colors.white..style = PaintingStyle.fill);
     canvas.restore();
   }
 

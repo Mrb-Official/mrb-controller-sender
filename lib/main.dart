@@ -5,8 +5,10 @@ import 'steering_ui.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
   ]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const TiltSteeringApp());
 }
 
@@ -19,11 +21,12 @@ class TiltSteeringApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFD4A800),
-          brightness: Brightness.light,
+        brightness: Brightness.dark,
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.white,
+          surface: Color(0xFF111111),
         ),
-        scaffoldBackgroundColor: const Color(0xFFFFF8E1),
+        scaffoldBackgroundColor: const Color(0xFF0A0A0A),
       ),
       home: const SteeringUI(),
     );
