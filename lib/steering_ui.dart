@@ -89,7 +89,7 @@ class _SteeringUIState extends State<SteeringUI> {
     await _udp!.connect();
     if (_udp!.isConnected) {
       await Future.delayed(const Duration(milliseconds: 300));
-      await _udp!.sendButtonConfig(_buttons.map((b) => {
+      _udp!.sendButtonConfig(_buttons.map((b) => {
         'name': b.name,
         'x': b.touchX,
         'y': b.touchY,
