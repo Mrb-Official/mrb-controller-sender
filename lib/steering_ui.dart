@@ -97,7 +97,7 @@ class _SteeringUIState extends State<SteeringUI> {
       await Future.delayed(const Duration(milliseconds: 300));
       // Send button config to receiver
       _udp!.sendButtonConfig(_buttons.map((b) => {
-        'name': b.name, 'x': b.x, 'y': b.y, 'isHold': b.isHold,
+        'name': b.name, 'x': b.touchX, 'y': b.touchY, 'isHold': b.isHold,
       }).toList());
       _sensor.start();
       _sensorSub = _sensor.stream.listen((data) {
@@ -260,8 +260,8 @@ class _SteeringUIState extends State<SteeringUI> {
   // ── CONTROLLER SCREEN ────────────────────────────
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-    final leftBtns  = _buttons.where((b) => b.x < 1080).toList();
-    final rightBtns = _buttons.where((b) => b.x >= 1080).toList();
+    final leftBtns  = _buttons.where((b) => b.touchX < 1080).toList();
+    final rightBtns = _buttons.where((b) => b.touchX >= 1080).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
