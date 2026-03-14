@@ -116,23 +116,23 @@ class _SteeringUIState extends State<SteeringUI> {
   void _onDown(CustomButton btn) {
     setState(() => _pressed[btn.id] = true);
     if (btn.isHold) {
-      _udp?.sendCustomButton(btn.name, true);
+      _udp?.sendCustomButton(btn.name, true, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
     } else {
       // Tap or swipe = send ON then OFF
-      _udp?.sendCustomButton(btn.name, true);
+      _udp?.sendCustomButton(btn.name, true, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
       Future.delayed(const Duration(milliseconds: 100),
-        () => _udp?.sendCustomButton(btn.name, false));
+        () => _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist));
     }
   }
 
   void _onUp(CustomButton btn) {
     setState(() => _pressed[btn.id] = false);
-    if (btn.isHold) _udp?.sendCustomButton(btn.name, false);
+    if (btn.isHold) _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
   }
 
   void _onCancel(CustomButton btn) {
     setState(() => _pressed[btn.id] = false);
-    if (btn.isHold) _udp?.sendCustomButton(btn.name, false);
+    if (btn.isHold) _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
   }
 
   @override
