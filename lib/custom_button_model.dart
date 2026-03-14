@@ -12,8 +12,8 @@ class CustomButton {
   double uiHeight;
   double uiPosX;
   double uiPosY;
-  String swipeDir;   // none, up, down, left, right
-  double swipeDist;  // pixels to swipe
+  String swipeDir;
+  double swipeDist;
 
   CustomButton({
     required this.id,
@@ -55,26 +55,42 @@ class CustomButton {
 }
 
 List<CustomButton> defaultButtons() => [
-  CustomButton(id: 'brake',     name: 'BRAKE', icon: 'pan_tool',
-    isHold: true,  touchX: 235,  touchY: 720,
-    uiWidth: 90, uiHeight: 70, uiPosX: 10,  uiPosY: 160,
-    swipeDir: 'none', swipeDist: 0),
-  CustomButton(id: 'gas',       name: 'GAS',   icon: 'speed',
-    isHold: true,  touchX: 2192, touchY: 850,
-    uiWidth: 90, uiHeight: 70, uiPosX: 560, uiPosY: 160,
-    swipeDir: 'none', swipeDist: 0),
-  CustomButton(id: 'gear_up',   name: 'GEAR+', icon: 'expand_less',
-    isHold: false, touchX: 1900, touchY: 600,
-    uiWidth: 80, uiHeight: 60, uiPosX: 560, uiPosY: 80,
-    swipeDir: 'up', swipeDist: 100),
-  CustomButton(id: 'gear_down', name: 'GEAR-', icon: 'expand_more',
-    isHold: false, touchX: 1900, touchY: 900,
-    uiWidth: 80, uiHeight: 60, uiPosX: 560, uiPosY: 250,
-    swipeDir: 'down', swipeDist: 100),
+  CustomButton(
+    id: 'brake', name: 'BRAKE', icon: 'pan_tool',
+    isHold: true,
+    touchX: 1933, touchY: 927,
+    uiWidth: 90,  uiHeight: 70,
+    uiPosX: 10,   uiPosY: 160,
+    swipeDir: 'none', swipeDist: 0,
+  ),
+  CustomButton(
+    id: 'gas', name: 'GAS', icon: 'speed',
+    isHold: true,
+    touchX: 2192, touchY: 850,
+    uiWidth: 90,  uiHeight: 70,
+    uiPosX: 560,  uiPosY: 160,
+    swipeDir: 'none', swipeDist: 0,
+  ),
+  CustomButton(
+    id: 'gear_up', name: 'GEAR+', icon: 'expand_less',
+    isHold: false,
+    touchX: 2244, touchY: 592,
+    uiWidth: 80,  uiHeight: 60,
+    uiPosX: 560,  uiPosY: 80,
+    swipeDir: 'up', swipeDist: 250,
+  ),
+  CustomButton(
+    id: 'gear_down', name: 'GEAR-', icon: 'expand_more',
+    isHold: false,
+    touchX: 2244, touchY: 400,
+    uiWidth: 80,  uiHeight: 60,
+    uiPosX: 560,  uiPosY: 250,
+    swipeDir: 'down', swipeDist: 250,
+  ),
 ];
 
 class ButtonStorage {
-  static const _key = 'custom_buttons_v3';
+  static const _key = 'custom_buttons_v4';
 
   static Future<List<CustomButton>> load() async {
     final prefs = await SharedPreferences.getInstance();
