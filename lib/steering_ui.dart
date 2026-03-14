@@ -28,10 +28,7 @@ class _SteeringUIState extends State<SteeringUI> {
   String _scanStatus = '';
 
   @override
-  void initState() {
-    super.initState();
-    _init();
-  }
+  void initState() { super.initState(); _init(); }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -72,16 +69,13 @@ class _SteeringUIState extends State<SteeringUI> {
           final socket = await Socket.connect(ip, 9876,
             timeout: const Duration(milliseconds: 80));
           socket.destroy();
-          setState(() {
-            _ipController.text = ip;
-            _scanStatus = 'Found: $ip ✓';
-          });
+          setState(() { _ipController.text = ip; _scanStatus = 'Found: $ip ✓'; });
           found = true;
         } catch (_) {}
       }
       if (!found) setState(() => _scanStatus = 'Not found');
     } catch (e) {
-      setState(() => _scanStatus = 'Error: $e');
+      setState(() => _scanStatus = 'Error');
     }
     setState(() => _scanning = false);
   }
@@ -95,9 +89,13 @@ class _SteeringUIState extends State<SteeringUI> {
     await _udp!.connect();
     if (_udp!.isConnected) {
       await Future.delayed(const Duration(milliseconds: 300));
-      // Send button config to receiver
-      _udp!.sendButtonConfig(_buttons.map((b) => {
-        'name': b.name, 'x': b.touchX, 'y': b.touchY, 'isHold': b.isHold,
+      await _udp!.sendButtonConfig(_buttons.map((b) => {
+        'name': b.name,
+        'x': b.touchX,
+        'y': b.touchY,
+        'isHold': b.isHold,
+        'swipeDir': b.swipeDir,
+        'swipeDist': b.swipeDist,
       }).toList());
       _sensor.start();
       _sensorSub = _sensor.stream.listen((data) {
@@ -116,21 +114,20 @@ class _SteeringUIState extends State<SteeringUI> {
   }
 
   void _onDown(CustomButton btn) {
+    setState(() => _pressed[btn.id] = true);
     if (btn.isHold) {
-      setState(() => _pressed[btn.id] = true);
       _udp?.sendCustomButton(btn.name, true);
+    } else {
+      // Tap or swipe = send ON then OFF
+      _udp?.sendCustomButton(btn.name, true);
+      Future.delayed(const Duration(milliseconds: 100),
+        () => _udp?.sendCustomButton(btn.name, false));
     }
   }
 
   void _onUp(CustomButton btn) {
-    if (btn.isHold) {
-      setState(() => _pressed[btn.id] = false);
-      _udp?.sendCustomButton(btn.name, false);
-    } else {
-      _udp?.sendCustomButton(btn.name, true);
-      Future.delayed(const Duration(milliseconds: 80),
-        () => _udp?.sendCustomButton(btn.name, false));
-    }
+    setState(() => _pressed[btn.id] = false);
+    if (btn.isHold) _udp?.sendCustomButton(btn.name, false);
   }
 
   void _onCancel(CustomButton btn) {
@@ -156,7 +153,6 @@ class _SteeringUIState extends State<SteeringUI> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Airplane style logo
                 Container(
                   width: 80, height: 80,
                   decoration: BoxDecoration(
@@ -184,8 +180,7 @@ class _SteeringUIState extends State<SteeringUI> {
                       decoration: InputDecoration(
                         hintText: 'Receiver IP',
                         hintStyle: const TextStyle(color: Colors.white24),
-                        prefixIcon: const Icon(Icons.wifi,
-                          color: Colors.white38),
+                        prefixIcon: const Icon(Icons.wifi, color: Colors.white38),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(color: Colors.white24)),
@@ -209,8 +204,7 @@ class _SteeringUIState extends State<SteeringUI> {
                         ? const SizedBox(width: 18, height: 18,
                             child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.search,
-                            color: Colors.white54, size: 22),
+                        : const Icon(Icons.search, color: Colors.white54, size: 22),
                     ),
                   ),
                 ]),
@@ -218,8 +212,7 @@ class _SteeringUIState extends State<SteeringUI> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(_scanStatus,
-                      style: const TextStyle(
-                        color: Colors.white38, fontSize: 11)),
+                      style: const TextStyle(color: Colors.white38, fontSize: 11)),
                   ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -228,8 +221,7 @@ class _SteeringUIState extends State<SteeringUI> {
                     onPressed: _connect,
                     icon: const Icon(Icons.link),
                     label: const Text('Connect',
-                      style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
@@ -240,12 +232,11 @@ class _SteeringUIState extends State<SteeringUI> {
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const ButtonEditor()));
+                    await Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ButtonEditor()));
                     _loadButtons();
                   },
-                  icon: const Icon(Icons.tune,
-                    color: Colors.white24, size: 16),
+                  icon: const Icon(Icons.tune, color: Colors.white24, size: 16),
                   label: const Text('Configure Buttons',
                     style: TextStyle(color: Colors.white24, fontSize: 12)),
                 ),
@@ -260,55 +251,39 @@ class _SteeringUIState extends State<SteeringUI> {
   // ── CONTROLLER SCREEN ────────────────────────────
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-    final leftBtns  = _buttons.where((b) => b.touchX < 1080).toList();
-    final rightBtns = _buttons.where((b) => b.touchX >= 1080).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Row(
+        child: Stack(
           children: [
-            // LEFT BUTTONS
-            SizedBox(
-              width: 90,
+            // Center - Steering wheel
+            Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: leftBtns.map((b) => _buildBtn(b)).toList(),
-              ),
-            ),
-
-            // CENTER
-            Expanded(
-              child: Column(
                 children: [
-                  // Minimal top bar
+                  // Top bar
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Row(children: [
                       Container(width: 6, height: 6,
                         decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF00FF88))),
+                          shape: BoxShape.circle, color: Color(0xFF00FF88))),
                       const SizedBox(width: 4),
                       Text(_ipController.text,
-                        style: const TextStyle(
-                          color: Colors.white24, fontSize: 10)),
+                        style: const TextStyle(color: Colors.white24, fontSize: 10)),
                       const Spacer(),
                       GestureDetector(
                         onTap: () async {
                           await Navigator.push(context,
-                            MaterialPageRoute(
-                              builder: (_) => const ButtonEditor()));
+                            MaterialPageRoute(builder: (_) => const ButtonEditor()));
                           _loadButtons();
                         },
-                        child: const Icon(Icons.tune,
-                          color: Colors.white24, size: 16)),
+                        child: const Icon(Icons.tune, color: Colors.white24, size: 16)),
                       const SizedBox(width: 12),
                       GestureDetector(
                         onTap: _disconnect,
-                        child: const Icon(Icons.link_off,
-                          color: Colors.white24, size: 16)),
+                        child: const Icon(Icons.link_off, color: Colors.white24, size: 16)),
                     ]),
                   ),
 
@@ -341,48 +316,46 @@ class _SteeringUIState extends State<SteeringUI> {
               ),
             ),
 
-            // RIGHT BUTTONS
-            SizedBox(
-              width: 90,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: rightBtns.map((b) => _buildBtn(b)).toList(),
-              ),
-            ),
+            // Buttons - Stack Positioned
+            ..._buttons.map((btn) => _buildPositionedBtn(btn)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBtn(CustomButton btn) {
+  Widget _buildPositionedBtn(CustomButton btn) {
     final pressed = _pressed[btn.id] ?? false;
-    return GestureDetector(
-      onTapDown: (_) => _onDown(btn),
-      onTapUp: (_) => _onUp(btn),
-      onTapCancel: () => _onCancel(btn),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 60),
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-        height: 60,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: pressed ? Colors.white : const Color(0xFF1A1A1A),
-          border: Border.all(
-            color: pressed ? Colors.white : Colors.white24)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(iconFromName(btn.icon),
-              color: pressed ? Colors.black : Colors.white54,
-              size: 22),
-            const SizedBox(height: 2),
-            Text(btn.name,
-              style: TextStyle(
-                color: pressed ? Colors.black : Colors.white38,
-                fontSize: 8, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis),
-          ],
+    return Positioned(
+      left: btn.uiPosX,
+      top: btn.uiPosY,
+      child: GestureDetector(
+        onTapDown: (_) => _onDown(btn),
+        onTapUp: (_) => _onUp(btn),
+        onTapCancel: () => _onCancel(btn),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
+          width: btn.uiWidth,
+          height: btn.uiHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: pressed ? Colors.white : const Color(0xFF1A1A1A),
+            border: Border.all(
+              color: pressed ? Colors.white : Colors.white24)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(iconFromName(btn.icon),
+                color: pressed ? Colors.black : Colors.white54,
+                size: btn.uiHeight * 0.38),
+              const SizedBox(height: 2),
+              Text(btn.name,
+                style: TextStyle(
+                  color: pressed ? Colors.black : Colors.white38,
+                  fontSize: 8, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis),
+            ],
+          ),
         ),
       ),
     );
@@ -414,7 +387,6 @@ class _WheelPainter extends CustomPainter {
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(-angle * pi / 180);
-
     final spoke = Paint()
       ..color = Colors.white24
       ..style = PaintingStyle.stroke..strokeWidth = 6;

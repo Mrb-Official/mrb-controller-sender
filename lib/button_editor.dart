@@ -20,6 +20,8 @@ const _iconOptions = {
 
 IconData iconFromName(String name) => _iconOptions[name] ?? Icons.gamepad;
 
+const _swipeDirs = ['none', 'up', 'down', 'left', 'right'];
+
 class ButtonEditor extends StatefulWidget {
   const ButtonEditor({super.key});
   @override
@@ -43,7 +45,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
   }
 
   void _editButton(int index) {
-    final btn = _buttons[index];
+    final btn        = _buttons[index];
     final nameCtrl   = TextEditingController(text: btn.name);
     final xCtrl      = TextEditingController(text: btn.touchX.toInt().toString());
     final yCtrl      = TextEditingController(text: btn.touchY.toInt().toString());
@@ -51,8 +53,10 @@ class _ButtonEditorState extends State<ButtonEditor> {
     final heightCtrl = TextEditingController(text: btn.uiHeight.toInt().toString());
     final posXCtrl   = TextEditingController(text: btn.uiPosX.toInt().toString());
     final posYCtrl   = TextEditingController(text: btn.uiPosY.toInt().toString());
+    final distCtrl   = TextEditingController(text: btn.swipeDist.toInt().toString());
     String selectedIcon = btn.icon;
-    bool isHold = btn.isHold;
+    bool isHold         = btn.isHold;
+    String swipeDir     = btn.swipeDir;
 
     showDialog(context: context, builder: (_) {
       return StatefulBuilder(builder: (ctx, setS) {
@@ -66,28 +70,61 @@ class _ButtonEditorState extends State<ButtonEditor> {
               children: [
                 _field(nameCtrl, 'Button Name'),
                 const SizedBox(height: 8),
-                _sectionLabel('Touch Coordinates (Game Screen)'),
+
+                _sec('Touch Coordinates (Game Screen)'),
                 Row(children: [
-                  Expanded(child: _field(xCtrl,   'Touch X', num: true)),
+                  Expanded(child: _field(xCtrl, 'Touch X', num: true)),
                   const SizedBox(width: 12),
-                  Expanded(child: _field(yCtrl,   'Touch Y', num: true)),
+                  Expanded(child: _field(yCtrl, 'Touch Y', num: true)),
                 ]),
                 const SizedBox(height: 8),
-                _sectionLabel('Button Size (UI)'),
+
+                _sec('Button Size (UI)'),
                 Row(children: [
                   Expanded(child: _field(widthCtrl,  'Width',  num: true)),
                   const SizedBox(width: 12),
                   Expanded(child: _field(heightCtrl, 'Height', num: true)),
                 ]),
                 const SizedBox(height: 8),
-                _sectionLabel('Button Position (UI)'),
+
+                _sec('Button Position (UI) — from top-left'),
                 Row(children: [
                   Expanded(child: _field(posXCtrl, 'Pos X', num: true)),
                   const SizedBox(width: 12),
                   Expanded(child: _field(posYCtrl, 'Pos Y', num: true)),
                 ]),
+                const SizedBox(height: 8),
+
+                _sec('Swipe Direction (for gear change etc)'),
+                Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: _swipeDirs.map((dir) {
+                    final sel = swipeDir == dir;
+                    return GestureDetector(
+                      onTap: () => setS(() => swipeDir = dir),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: sel ? Colors.white : Colors.transparent,
+                          border: Border.all(
+                            color: sel ? Colors.white : Colors.white24)),
+                        child: Text(dir,
+                          style: TextStyle(
+                            color: sel ? Colors.black : Colors.white54,
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                if (swipeDir != 'none') ...[
+                  const SizedBox(height: 8),
+                  _field(distCtrl, 'Swipe Distance (px)', num: true),
+                ],
                 const SizedBox(height: 12),
-                _sectionLabel('Icon'),
+
+                _sec('Icon'),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8, runSpacing: 8,
@@ -110,6 +147,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
+
                 Row(children: [
                   const Text('Hold?',
                     style: TextStyle(color: Colors.white54)),
@@ -131,16 +169,18 @@ class _ButtonEditorState extends State<ButtonEditor> {
               onPressed: () {
                 setState(() {
                   _buttons[index] = CustomButton(
-                    id:       btn.id,
-                    name:     nameCtrl.text.toUpperCase(),
-                    icon:     selectedIcon,
-                    isHold:   isHold,
-                    touchX:   double.tryParse(xCtrl.text)      ?? btn.touchX,
-                    touchY:   double.tryParse(yCtrl.text)      ?? btn.touchY,
-                    uiWidth:  double.tryParse(widthCtrl.text)  ?? btn.uiWidth,
-                    uiHeight: double.tryParse(heightCtrl.text) ?? btn.uiHeight,
-                    uiPosX:   double.tryParse(posXCtrl.text)   ?? btn.uiPosX,
-                    uiPosY:   double.tryParse(posYCtrl.text)   ?? btn.uiPosY,
+                    id:        btn.id,
+                    name:      nameCtrl.text.toUpperCase(),
+                    icon:      selectedIcon,
+                    isHold:    isHold,
+                    touchX:    double.tryParse(xCtrl.text)      ?? btn.touchX,
+                    touchY:    double.tryParse(yCtrl.text)      ?? btn.touchY,
+                    uiWidth:   double.tryParse(widthCtrl.text)  ?? btn.uiWidth,
+                    uiHeight:  double.tryParse(heightCtrl.text) ?? btn.uiHeight,
+                    uiPosX:    double.tryParse(posXCtrl.text)   ?? btn.uiPosX,
+                    uiPosY:    double.tryParse(posYCtrl.text)   ?? btn.uiPosY,
+                    swipeDir:  swipeDir,
+                    swipeDist: double.tryParse(distCtrl.text)   ?? btn.swipeDist,
                   );
                 });
                 Navigator.pop(ctx);
@@ -154,7 +194,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
     });
   }
 
-  Widget _sectionLabel(String text) => Padding(
+  Widget _sec(String text) => Padding(
     padding: const EdgeInsets.only(top: 4, bottom: 2),
     child: Align(
       alignment: Alignment.centerLeft,
@@ -189,8 +229,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
           TextButton(
             onPressed: _save,
             child: const Text('SAVE',
-              style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold))),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -201,7 +240,8 @@ class _ButtonEditorState extends State<ButtonEditor> {
               name: 'NEW', icon: 'gamepad', isHold: true,
               touchX: 500, touchY: 500,
               uiWidth: 80, uiHeight: 64,
-              uiPosX: 0,   uiPosY: 0,
+              uiPosX: 100, uiPosY: 100,
+              swipeDir: 'none', swipeDist: 100,
             ));
           });
         },
@@ -220,15 +260,13 @@ class _ButtonEditorState extends State<ButtonEditor> {
               final btn = _buttons[i];
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white12)),
                 child: Row(children: [
-                  Icon(iconFromName(btn.icon),
-                    color: Colors.white70, size: 28),
+                  Icon(iconFromName(btn.icon), color: Colors.white70, size: 28),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -238,12 +276,13 @@ class _ButtonEditorState extends State<ButtonEditor> {
                           style: const TextStyle(color: Colors.white,
                             fontSize: 15, fontWeight: FontWeight.bold)),
                         Text(
-                          'Touch: ${btn.touchX.toInt()},${btn.touchY.toInt()}'
+                          'Touch:${btn.touchX.toInt()},${btn.touchY.toInt()}'
                           '  ${btn.uiWidth.toInt()}×${btn.uiHeight.toInt()}'
                           '  Pos:${btn.uiPosX.toInt()},${btn.uiPosY.toInt()}'
+                          '  Swipe:${btn.swipeDir}'
                           '  ${btn.isHold ? "Hold" : "Tap"}',
                           style: const TextStyle(
-                            color: Colors.white38, fontSize: 11)),
+                            color: Colors.white38, fontSize: 10)),
                       ],
                     ),
                   ),
@@ -252,8 +291,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
                     onPressed: () => _editButton(i)),
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () =>
-                      setState(() => _buttons.removeAt(i))),
+                    onPressed: () => setState(() => _buttons.removeAt(i))),
                 ]),
               );
             },
