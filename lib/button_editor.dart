@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'custom_button_model.dart';
 
 const _iconOptions = {
-  'speed':              Icons.speed,
-  'pan_tool':           Icons.pan_tool,
-  'expand_less':        Icons.expand_less,
-  'expand_more':        Icons.expand_more,
-  'gamepad':            Icons.gamepad,
-  'touch_app':          Icons.touch_app,
-  'arrow_upward':       Icons.arrow_upward,
-  'arrow_downward':     Icons.arrow_downward,
-  'arrow_back':         Icons.arrow_back,
-  'arrow_forward':      Icons.arrow_forward,
+  'speed':                Icons.speed,
+  'pan_tool':             Icons.pan_tool,
+  'expand_less':          Icons.expand_less,
+  'expand_more':          Icons.expand_more,
+  'gamepad':              Icons.gamepad,
+  'touch_app':            Icons.touch_app,
+  'arrow_upward':         Icons.arrow_upward,
+  'arrow_downward':       Icons.arrow_downward,
+  'arrow_back':           Icons.arrow_back,
+  'arrow_forward':        Icons.arrow_forward,
   'radio_button_checked': Icons.radio_button_checked,
-  'stars':              Icons.stars,
-  'bolt':               Icons.bolt,
-  'flag':               Icons.flag,
+  'bolt':                 Icons.bolt,
+  'flag':                 Icons.flag,
+  'stars':                Icons.stars,
 };
 
 IconData iconFromName(String name) => _iconOptions[name] ?? Icons.gamepad;
@@ -30,10 +30,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
   List<CustomButton> _buttons = [];
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
     final btns = await ButtonStorage.load();
@@ -47,9 +44,13 @@ class _ButtonEditorState extends State<ButtonEditor> {
 
   void _editButton(int index) {
     final btn = _buttons[index];
-    final nameCtrl = TextEditingController(text: btn.name);
-    final xCtrl    = TextEditingController(text: btn.x.toInt().toString());
-    final yCtrl    = TextEditingController(text: btn.y.toInt().toString());
+    final nameCtrl   = TextEditingController(text: btn.name);
+    final xCtrl      = TextEditingController(text: btn.touchX.toInt().toString());
+    final yCtrl      = TextEditingController(text: btn.touchY.toInt().toString());
+    final widthCtrl  = TextEditingController(text: btn.uiWidth.toInt().toString());
+    final heightCtrl = TextEditingController(text: btn.uiHeight.toInt().toString());
+    final posXCtrl   = TextEditingController(text: btn.uiPosX.toInt().toString());
+    final posYCtrl   = TextEditingController(text: btn.uiPosY.toInt().toString());
     String selectedIcon = btn.icon;
     bool isHold = btn.isHold;
 
@@ -63,40 +64,31 @@ class _ButtonEditorState extends State<ButtonEditor> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: nameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    labelStyle: TextStyle(color: Colors.white38),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white24))),
-                ),
-                const SizedBox(height: 12),
+                _field(nameCtrl, 'Button Name'),
+                const SizedBox(height: 8),
+                _sectionLabel('Touch Coordinates (Game Screen)'),
                 Row(children: [
-                  Expanded(child: TextField(
-                    controller: xCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'X',
-                      labelStyle: TextStyle(color: Colors.white38),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white24))),
-                  )),
-                  const SizedBox(width: 16),
-                  Expanded(child: TextField(
-                    controller: yCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Y',
-                      labelStyle: TextStyle(color: Colors.white38),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white24))),
-                  )),
+                  Expanded(child: _field(xCtrl,   'Touch X', num: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _field(yCtrl,   'Touch Y', num: true)),
                 ]),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                _sectionLabel('Button Size (UI)'),
+                Row(children: [
+                  Expanded(child: _field(widthCtrl,  'Width',  num: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _field(heightCtrl, 'Height', num: true)),
+                ]),
+                const SizedBox(height: 8),
+                _sectionLabel('Button Position (UI)'),
+                Row(children: [
+                  Expanded(child: _field(posXCtrl, 'Pos X', num: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _field(posYCtrl, 'Pos Y', num: true)),
+                ]),
+                const SizedBox(height: 12),
+                _sectionLabel('Icon'),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8, runSpacing: 8,
                   children: _iconOptions.entries.map((e) {
@@ -139,12 +131,16 @@ class _ButtonEditorState extends State<ButtonEditor> {
               onPressed: () {
                 setState(() {
                   _buttons[index] = CustomButton(
-                    id: btn.id,
-                    name: nameCtrl.text.toUpperCase(),
-                    icon: selectedIcon,
-                    isHold: isHold,
-                    x: double.tryParse(xCtrl.text) ?? btn.x,
-                    y: double.tryParse(yCtrl.text) ?? btn.y,
+                    id:       btn.id,
+                    name:     nameCtrl.text.toUpperCase(),
+                    icon:     selectedIcon,
+                    isHold:   isHold,
+                    touchX:   double.tryParse(xCtrl.text)      ?? btn.touchX,
+                    touchY:   double.tryParse(yCtrl.text)      ?? btn.touchY,
+                    uiWidth:  double.tryParse(widthCtrl.text)  ?? btn.uiWidth,
+                    uiHeight: double.tryParse(heightCtrl.text) ?? btn.uiHeight,
+                    uiPosX:   double.tryParse(posXCtrl.text)   ?? btn.uiPosX,
+                    uiPosY:   double.tryParse(posYCtrl.text)   ?? btn.uiPosY,
                   );
                 });
                 Navigator.pop(ctx);
@@ -156,6 +152,28 @@ class _ButtonEditorState extends State<ButtonEditor> {
         );
       });
     });
+  }
+
+  Widget _sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.only(top: 4, bottom: 2),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text,
+        style: const TextStyle(color: Colors.white38, fontSize: 11))),
+  );
+
+  Widget _field(TextEditingController ctrl, String label,
+      {bool num = false}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: num ? TextInputType.number : TextInputType.text,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white38),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white24))),
+    );
   }
 
   @override
@@ -180,10 +198,10 @@ class _ButtonEditorState extends State<ButtonEditor> {
           setState(() {
             _buttons.add(CustomButton(
               id: DateTime.now().millisecondsSinceEpoch.toString(),
-              name: 'NEW',
-              icon: 'gamepad',
-              isHold: true,
-              x: 500, y: 500,
+              name: 'NEW', icon: 'gamepad', isHold: true,
+              touchX: 500, touchY: 500,
+              uiWidth: 80, uiHeight: 64,
+              uiPosX: 0,   uiPosY: 0,
             ));
           });
         },
@@ -217,13 +235,15 @@ class _ButtonEditorState extends State<ButtonEditor> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(btn.name,
-                          style: const TextStyle(
-                            color: Colors.white, fontSize: 15,
-                            fontWeight: FontWeight.bold)),
-                        Text('X:${btn.x.toInt()}  Y:${btn.y.toInt()}'
+                          style: const TextStyle(color: Colors.white,
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Touch: ${btn.touchX.toInt()},${btn.touchY.toInt()}'
+                          '  ${btn.uiWidth.toInt()}×${btn.uiHeight.toInt()}'
+                          '  Pos:${btn.uiPosX.toInt()},${btn.uiPosY.toInt()}'
                           '  ${btn.isHold ? "Hold" : "Tap"}',
                           style: const TextStyle(
-                            color: Colors.white38, fontSize: 12)),
+                            color: Colors.white38, fontSize: 11)),
                       ],
                     ),
                   ),

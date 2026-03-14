@@ -6,41 +6,64 @@ class CustomButton {
   String name;
   String icon;
   bool isHold;
-  double x;
-  double y;
+  double touchX;
+  double touchY;
+  double uiWidth;
+  double uiHeight;
+  double uiPosX;
+  double uiPosY;
 
   CustomButton({
     required this.id,
     required this.name,
     required this.icon,
     required this.isHold,
-    required this.x,
-    required this.y,
+    required this.touchX,
+    required this.touchY,
+    this.uiWidth  = 80,
+    this.uiHeight = 64,
+    this.uiPosX   = 0,
+    this.uiPosY   = 0,
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name, 'icon': icon,
-    'isHold': isHold, 'x': x, 'y': y,
+    'id': id, 'name': name, 'icon': icon, 'isHold': isHold,
+    'touchX': touchX, 'touchY': touchY,
+    'uiWidth': uiWidth, 'uiHeight': uiHeight,
+    'uiPosX': uiPosX, 'uiPosY': uiPosY,
   };
 
   factory CustomButton.fromJson(Map<String, dynamic> j) => CustomButton(
-    id: j['id'], name: j['name'],
-    icon: j['icon'] ?? 'gamepad',
-    isHold: j['isHold'],
-    x: (j['x'] ?? 0.0).toDouble(),
-    y: (j['y'] ?? 0.0).toDouble(),
+    id:       j['id'],
+    name:     j['name'],
+    icon:     j['icon'] ?? 'gamepad',
+    isHold:   j['isHold'],
+    touchX:   (j['touchX'] ?? j['x'] ?? 0.0).toDouble(),
+    touchY:   (j['touchY'] ?? j['y'] ?? 0.0).toDouble(),
+    uiWidth:  (j['uiWidth']  ?? 80.0).toDouble(),
+    uiHeight: (j['uiHeight'] ?? 64.0).toDouble(),
+    uiPosX:   (j['uiPosX']  ?? 0.0).toDouble(),
+    uiPosY:   (j['uiPosY']  ?? 0.0).toDouble(),
   );
 }
 
 List<CustomButton> defaultButtons() => [
-  CustomButton(id: 'brake',      name: 'BRAKE',  icon: 'pan_tool',    isHold: true,  x: 235,  y: 720),
-  CustomButton(id: 'gas',        name: 'GAS',    icon: 'speed',       isHold: true,  x: 2192, y: 850),
-  CustomButton(id: 'gear_up',    name: 'GEAR+',  icon: 'expand_less', isHold: false, x: 1900, y: 600),
-  CustomButton(id: 'gear_down',  name: 'GEAR-',  icon: 'expand_more', isHold: false, x: 1900, y: 900),
+  CustomButton(id: 'brake',     name: 'BRAKE', icon: 'pan_tool',
+    isHold: true,  touchX: 235,  touchY: 720,
+    uiWidth: 90, uiHeight: 70, uiPosX: 0, uiPosY: 0),
+  CustomButton(id: 'gas',       name: 'GAS',   icon: 'speed',
+    isHold: true,  touchX: 2192, touchY: 850,
+    uiWidth: 90, uiHeight: 70, uiPosX: 0, uiPosY: 0),
+  CustomButton(id: 'gear_up',   name: 'GEAR+', icon: 'expand_less',
+    isHold: false, touchX: 1900, touchY: 600,
+    uiWidth: 80, uiHeight: 60, uiPosX: 0, uiPosY: 0),
+  CustomButton(id: 'gear_down', name: 'GEAR-', icon: 'expand_more',
+    isHold: false, touchX: 1900, touchY: 900,
+    uiWidth: 80, uiHeight: 60, uiPosX: 0, uiPosY: 0),
 ];
 
 class ButtonStorage {
-  static const _key = 'custom_buttons_v2';
+  static const _key = 'custom_buttons_v3';
 
   static Future<List<CustomButton>> load() async {
     final prefs = await SharedPreferences.getInstance();
