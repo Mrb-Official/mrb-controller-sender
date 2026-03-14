@@ -33,12 +33,33 @@ class UdpSender {
   void sendGas(bool isPressed) => _send(isPressed ? 'RACE:ON' : 'RACE:OFF');
   void sendBrake(bool isPressed) => _send(isPressed ? 'BRK:ON' : 'BRK:OFF');
 
-  void sendCustomButton(String name, bool isPressed) =>
-    _send(isPressed ? 'BTN:$name:ON' : 'BTN:$name:OFF');
+  // Button press — agar swipe hai to SWIPE: bhejo
+  void sendCustomButton(String name, bool isPressed,
+      {String swipeDir = 'none', double swipeDist = 100}) {
+    if (isPressed) {
+      if (swipeDir != 'none') {
+        // Swipe command
+        _send('SWIPE:$name:$swipeDir:${swipeDist.toInt()}');
+      } else {
+        _send('BTN:$name:ON');
+      }
+    } else {
+      if (swipeDir == 'none') {
+        _send('BTN:$name:OFF');
+      }
+      // Swipe = no OFF needed
+    }
+  }
 
-  void sendButtonConfig(List<Map<String, dynamic>> buttons) {
-    for (final btn in buttons) {
-      _send('CFG:${btn['name']}:${btn['x']}:${btn['y']}:${btn['isHold'] ? '1' : '0'}');
+  Future<void> sendButtonConfig(List<Map<String, dynamic>> buttons) async {
+    for (int i = 0; i < 3; i++) {
+      for (final btn in buttons) {
+        _send('CFG:${btn['name']}:${btn['x']}:${btn['y']}:'
+          '${btn['isHold'] ? '1' : '0'}:'
+          '${btn['swipeDir'] ?? 'none'}:'
+          '${(btn['swipeDist'] ?? 100).toInt()}');
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
     }
   }
 
