@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
+import 'sound_service.dart';
 import 'udp_sender.dart';
 import 'custom_button_model.dart';
 import 'button_editor.dart';
@@ -60,6 +61,7 @@ class _SteeringUIState extends State<SteeringUI>
 
     _init();
     _bootHaptic();
+    SoundService.playBoot();
   }
 
   Future<void> _bootHaptic() async {
