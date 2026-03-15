@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
 import 'udp_sender.dart';
@@ -20,7 +19,6 @@ class _SteeringUIState extends State<SteeringUI>
     with TickerProviderStateMixin {
 
   final SensorService _sensor = SensorService();
-  final AudioPlayer _audio = AudioPlayer();
   UdpSender? _udp;
   StreamSubscription<SensorData>? _sensorSub;
   final _ipController = TextEditingController();
@@ -33,11 +31,9 @@ class _SteeringUIState extends State<SteeringUI>
   bool _scanning = false;
   String _scanStatus = '';
 
-  // Animations
-  late AnimationController _pulseCtrl;
+  // Connect animation only
   late AnimationController _connectCtrl;
   late AnimationController _dotCtrl;
-  late Animation<double> _pulseAnim;
   late Animation<double> _connectScaleAnim;
   late Animation<double> _connectFadeAnim;
   late Animation<double> _dotAnim;
@@ -46,62 +42,42 @@ class _SteeringUIState extends State<SteeringUI>
   void initState() {
     super.initState();
 
-    // Pulse animation - waiting to pair
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400))
-      ..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.92, end: 1.08)
-      .animate(CurvedAnimation(parent: _pulseCtrl,
-        curve: Curves.easeInOut));
-
     // Connect animation
     _connectCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900));
     _connectScaleAnim = Tween<double>(begin: 0.3, end: 1.0)
-      .animate(CurvedAnimation(parent: _connectCtrl,
-        curve: Curves.elasticOut));
+      .animate(CurvedAnimation(
+        parent: _connectCtrl, curve: Curves.elasticOut));
     _connectFadeAnim = Tween<double>(begin: 0.0, end: 1.0)
-      .animate(CurvedAnimation(parent: _connectCtrl,
-        curve: Curves.easeOut));
+      .animate(CurvedAnimation(
+        parent: _connectCtrl, curve: Curves.easeOut));
 
-    // Dot scanning animation
+    // Dots animation
     _dotCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800))
+      duration: const Duration(milliseconds: 900))
       ..repeat();
     _dotAnim = Tween<double>(begin: 0.0, end: 1.0)
       .animate(_dotCtrl);
 
     _init();
-    _playBootSound();
+    _bootHaptic();
   }
 
-  Future<void> _playBootSound() async {
-    // System boot beep using HapticFeedback pattern
-    await Future.delayed(const Duration(milliseconds: 300));
+  Future<void> _bootHaptic() async {
+    await Future.delayed(const Duration(milliseconds: 400));
     HapticFeedback.heavyImpact();
     await Future.delayed(const Duration(milliseconds: 150));
     HapticFeedback.mediumImpact();
     await Future.delayed(const Duration(milliseconds: 150));
     HapticFeedback.lightImpact();
-
-    // Play sound from system
-    try {
-      await _audio.play(AssetSource('sounds/boot.mp3'));
-    } catch (_) {
-      // No sound file = only haptic
-    }
   }
 
-  Future<void> _playConnectSound() async {
+  Future<void> _connectHaptic() async {
     HapticFeedback.heavyImpact();
     await Future.delayed(const Duration(milliseconds: 100));
     HapticFeedback.heavyImpact();
-    try {
-      await _audio.play(AssetSource('sounds/connect.mp3'));
-    } catch (_) {}
   }
 
   Future<void> _init() async {
@@ -142,7 +118,10 @@ class _SteeringUIState extends State<SteeringUI>
           final socket = await Socket.connect(ip, 9876,
             timeout: const Duration(milliseconds: 80));
           socket.destroy();
-          setState(() { _ipController.text = ip; _scanStatus = 'Found: $ip ✓'; });
+          setState(() {
+            _ipController.text = ip;
+            _scanStatus = 'Found: $ip ✓';
+          });
           found = true;
         } catch (_) {}
       }
@@ -159,12 +138,10 @@ class _SteeringUIState extends State<SteeringUI>
     _udp = UdpSender(receiverIp: ip);
     await _udp!.connect();
     if (_udp!.isConnected) {
-      await _playConnectSound();
-
-      // Show connect animation
+      await _connectHaptic();
       setState(() => _showConnectAnim = true);
       _connectCtrl.forward(from: 0);
-      await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 1400));
 
       await _udp!.sendButtonConfig(_buttons.map((b) => {
         'name': b.name, 'x': b.touchX, 'y': b.touchY,
@@ -177,7 +154,6 @@ class _SteeringUIState extends State<SteeringUI>
         _udp?.sendTilt(data.tiltX);
         if (mounted) setState(() => _tilt = data.tiltX);
       });
-
       setState(() {
         _isConnected = true;
         _showConnectAnim = false;
@@ -224,10 +200,8 @@ class _SteeringUIState extends State<SteeringUI>
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
     _connectCtrl.dispose();
     _dotCtrl.dispose();
-    _audio.dispose();
     _disconnect();
     _ipController.dispose();
     super.dispose();
@@ -240,7 +214,7 @@ class _SteeringUIState extends State<SteeringUI>
     return _buildConnect();
   }
 
-  // ── CONNECT ANIMATION SCREEN ────────────────────
+  // ── CONNECT ANIMATION ───────────────────────────
   Widget _buildConnectAnim() {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
@@ -254,55 +228,44 @@ class _SteeringUIState extends State<SteeringUI>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Ripple circles
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Outer ring
                       Container(
                         width: 180, height: 180,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white.withOpacity(
-                              0.1 * _connectFadeAnim.value),
-                            width: 2)),
-                      ),
-                      // Mid ring
+                              0.08 * _connectFadeAnim.value),
+                            width: 2))),
                       Container(
                         width: 130, height: 130,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white.withOpacity(
-                              0.2 * _connectFadeAnim.value),
-                            width: 2)),
-                      ),
-                      // Inner circle
+                              0.15 * _connectFadeAnim.value),
+                            width: 2))),
                       Container(
-                        width: 90, height: 90,
+                        width: 86, height: 86,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Color(0xFF1A1A1A)),
                         child: const Icon(
                           Icons.gamepad_outlined,
-                          color: Colors.white,
-                          size: 44),
-                      ),
+                          color: Colors.white, size: 42)),
                     ],
                   ),
                   const SizedBox(height: 28),
                   const Text('Controller Connected',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1)),
+                      color: Colors.white, fontSize: 20,
+                      fontWeight: FontWeight.bold, letterSpacing: 1)),
                   const SizedBox(height: 8),
                   Text(_ipController.text,
                     style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 14,
+                      color: Colors.white38, fontSize: 14,
                       fontFamily: 'monospace')),
                 ],
               ),
@@ -320,48 +283,43 @@ class _SteeringUIState extends State<SteeringUI>
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 48, vertical: 24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Pulsing logo
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, child) => Transform.scale(
-                    scale: _pulseAnim.value,
-                    child: child),
-                  child: Container(
-                    width: 100, height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111111),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: Colors.white12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.05),
-                          blurRadius: 20,
-                          spreadRadius: 2)
-                      ]),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
-                      child: Image.asset(
-                        'assets/icon.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.gamepad_outlined,
-                          color: Colors.white, size: 52),
-                      ),
+                // Static logo - NO animation
+                Container(
+                  width: 96, height: 96,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white12)),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(26),
+                    child: Image.asset(
+                      'assets/icon.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.gamepad_outlined,
+                          color: Colors.white, size: 48),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 20),
-                const Text('MRB Controller',
-                  style: TextStyle(color: Colors.white, fontSize: 24,
-                    fontWeight: FontWeight.bold, letterSpacing: 1)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 18),
 
-                // Waiting to pair dots
+                // App name
+                const Text('MRB Controller',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5)),
+
+                const SizedBox(height: 6),
+
+                // Waiting dots - ONLY dots animate
                 AnimatedBuilder(
                   animation: _dotAnim,
                   builder: (_, __) {
@@ -369,15 +327,16 @@ class _SteeringUIState extends State<SteeringUI>
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Waiting to pair',
+                        Text('Waiting to pair',
                           style: TextStyle(
-                            color: Colors.white38, fontSize: 13)),
-                        const SizedBox(width: 4),
+                            color: Colors.white.withOpacity(0.35),
+                            fontSize: 13)),
+                        const SizedBox(width: 6),
                         _dot(d > 0.25),
                         const SizedBox(width: 3),
-                        _dot(d > 0.50),
+                        _dot(d > 0.55),
                         const SizedBox(width: 3),
-                        _dot(d > 0.75),
+                        _dot(d > 0.80),
                       ],
                     );
                   },
@@ -385,6 +344,7 @@ class _SteeringUIState extends State<SteeringUI>
 
                 const SizedBox(height: 40),
 
+                // IP + scan
                 Row(children: [
                   Expanded(
                     child: TextField(
@@ -395,7 +355,8 @@ class _SteeringUIState extends State<SteeringUI>
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'Receiver IP',
-                        hintStyle: const TextStyle(color: Colors.white24),
+                        hintStyle: const TextStyle(
+                          color: Colors.white24),
                         prefixIcon: const Icon(Icons.wifi,
                           color: Colors.white38),
                         enabledBorder: OutlineInputBorder(
@@ -438,6 +399,7 @@ class _SteeringUIState extends State<SteeringUI>
                   ),
 
                 const SizedBox(height: 16),
+
                 SizedBox(
                   width: double.infinity, height: 50,
                   child: FilledButton.icon(
@@ -445,7 +407,8 @@ class _SteeringUIState extends State<SteeringUI>
                     icon: const Icon(Icons.link),
                     label: const Text('Connect',
                       style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold)),
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
@@ -453,7 +416,9 @@ class _SteeringUIState extends State<SteeringUI>
                         borderRadius: BorderRadius.circular(12))),
                   ),
                 ),
+
                 const SizedBox(height: 12),
+
                 TextButton.icon(
                   onPressed: () async {
                     await Navigator.push(context,
@@ -488,83 +453,117 @@ class _SteeringUIState extends State<SteeringUI>
   // ── CONTROLLER SCREEN ────────────────────────────
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-    final leftBtns  = _buttons.where((b) => b.touchX < 1080).toList();
-    final rightBtns = _buttons.where((b) => b.touchX >= 1080).toList();
+    final leftBtns  = _buttons
+      .where((b) => b.touchX < 1080).toList();
+    final rightBtns = _buttons
+      .where((b) => b.touchX >= 1080).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Row(
+        child: Column(
           children: [
-            SizedBox(
-              width: 200,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: leftBtns.map((b) => _buildBtn(b)).toList(),
-              ),
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 4),
+              child: Row(children: [
+                Container(width: 6, height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF00FF88))),
+                const SizedBox(width: 5),
+                Text(_ipController.text,
+                  style: const TextStyle(
+                    color: Colors.white24, fontSize: 10,
+                    fontFamily: 'monospace')),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(context,
+                      MaterialPageRoute(
+                        builder: (_) => const ButtonEditor()));
+                    _loadButtons();
+                  },
+                  child: const Icon(Icons.tune,
+                    color: Colors.white24, size: 18)),
+                const SizedBox(width: 14),
+                GestureDetector(
+                  onTap: _disconnect,
+                  child: const Icon(Icons.link_off,
+                    color: Colors.white24, size: 18)),
+              ]),
             ),
+
+            // Main area
             Expanded(
-              child: Column(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                    child: Row(children: [
-                      Container(width: 6, height: 6,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF00FF88))),
-                      const SizedBox(width: 4),
-                      Text(_ipController.text,
-                        style: const TextStyle(
-                          color: Colors.white24, fontSize: 10)),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(context,
-                            MaterialPageRoute(
-                              builder: (_) => const ButtonEditor()));
-                          _loadButtons();
-                        },
-                        child: const Icon(Icons.tune,
-                          color: Colors.white24, size: 16)),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: _disconnect,
-                        child: const Icon(Icons.link_off,
-                          color: Colors.white24, size: 16)),
-                    ]),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: CustomPaint(
-                        size: const Size(200, 200),
-                        painter: _WheelPainter(angle: angle),
-                      ),
+
+                  // LEFT BUTTONS
+                  SizedBox(
+                    width: 180,
+                    child: Wrap(
+                      direction: Axis.vertical,
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      children: leftBtns
+                        .map((b) => _buildBtn(b))
+                        .toList(),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                        value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
-                        minHeight: 4,
-                        backgroundColor: const Color(0xFF1A1A1A),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color.lerp(Colors.blue, Colors.orange,
-                            (_tilt.clamp(-10.0, 10.0) + 10) / 20)!),
-                      ),
+
+                  // CENTER steering wheel
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: CustomPaint(
+                              size: const Size(200, 200),
+                              painter: _WheelPainter(angle: angle),
+                            ),
+                          ),
+                        ),
+                        // Tilt bar
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16, 0, 16, 12),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: (_tilt.clamp(-10.0, 10.0)+10)/20,
+                              minHeight: 5,
+                              backgroundColor:
+                                const Color(0xFF1A1A1A),
+                              valueColor:
+                                AlwaysStoppedAnimation<Color>(
+                                  Color.lerp(
+                                    Colors.blue, Colors.orange,
+                                    (_tilt.clamp(-10.0,10.0)+10)/20
+                                  )!),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // RIGHT BUTTONS
+                  SizedBox(
+                    width: 180,
+                    child: Wrap(
+                      direction: Axis.vertical,
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      children: rightBtns
+                        .map((b) => _buildBtn(b))
+                        .toList(),
                     ),
                   ),
                 ],
-              ),
-            ),
-            SizedBox(
-              width: 200,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: rightBtns.map((b) => _buildBtn(b)).toList(),
               ),
             ),
           ],
@@ -583,9 +582,8 @@ class _SteeringUIState extends State<SteeringUI>
       onTapCancel: () => _onCancel(btn),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 60),
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        width:  btn.uiWidth,
-        height: btn.uiHeight,
+        width:  btn.uiWidth.clamp(60.0, 170.0),
+        height: btn.uiHeight.clamp(50.0, 200.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: pressed
@@ -599,7 +597,7 @@ class _SteeringUIState extends State<SteeringUI>
           children: [
             Icon(_getIcon(btn.icon),
               color: pressed ? pressColor : Colors.white38,
-              size: btn.uiHeight * 0.35),
+              size: (btn.uiHeight.clamp(50.0, 200.0)) * 0.32),
             const SizedBox(height: 4),
             Text(btn.name,
               style: TextStyle(
@@ -607,7 +605,8 @@ class _SteeringUIState extends State<SteeringUI>
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1),
-              overflow: TextOverflow.ellipsis),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -671,7 +670,8 @@ class _WheelPainter extends CustomPainter {
         Offset(r * cos(a), r * sin(a)), spoke);
     }
     canvas.drawCircle(Offset(0, -r + 8), 5,
-      Paint()..color = Colors.white..style = PaintingStyle.fill);
+      Paint()..color = Colors.white
+        ..style = PaintingStyle.fill);
     canvas.restore();
   }
 

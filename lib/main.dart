@@ -17,7 +17,7 @@ class TiltSteeringApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MRB Controller - Tilt Steering',
+      title: 'MRB Controller',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
