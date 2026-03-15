@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
 import 'udp_sender.dart';
@@ -108,6 +109,7 @@ class _SteeringUIState extends State<SteeringUI> {
   }
 
   void _onDown(CustomButton btn) {
+    HapticFeedback.mediumImpact();
     setState(() => _pressed[btn.id] = true);
     if (btn.swipeDir != 'none') {
       _udp?.sendCustomButton(btn.name, true,
