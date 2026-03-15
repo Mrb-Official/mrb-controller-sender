@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sensor_service.dart';
-import 'sound_service.dart';
 import 'udp_sender.dart';
 import 'custom_button_model.dart';
 import 'button_editor.dart';
+import 'sound_service.dart';
 
 class SteeringUI extends StatefulWidget {
   const SteeringUI({super.key});
@@ -54,8 +54,7 @@ class _SteeringUIState extends State<SteeringUI>
 
     _dotCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900))
-      ..repeat();
+      duration: const Duration(milliseconds: 900))..repeat();
     _dotAnim = Tween<double>(begin: 0.0, end: 1.0)
       .animate(_dotCtrl);
 
@@ -105,6 +104,7 @@ class _SteeringUIState extends State<SteeringUI>
         }
       }
       bool found = false;
+      for (int i = 1; i < 255 && !found; i++) {
         final ip = '$subnet.$i';
         try {
           final socket = await Socket.connect(ip, 9876,
@@ -117,7 +117,10 @@ class _SteeringUIState extends State<SteeringUI>
           found = true;
         } catch (_) {}
       }
-    } catch (_) { setState(() => _scanStatus = 'Error'); }
+      if (!found) setState(() => _scanStatus = 'Not found');
+    } catch (_) {
+      setState(() => _scanStatus = 'Error');
+    }
     setState(() => _scanning = false);
   }
 
@@ -127,14 +130,18 @@ class _SteeringUIState extends State<SteeringUI>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('receiver_ip', ip);
     _udp = UdpSender(receiverIp: ip);
+    await _udp!.connect();
+    if (_udp!.isConnected) {
       HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 100));
       HapticFeedback.heavyImpact();
+      SoundService.playConnect();
 
       setState(() => _showConnectAnim = true);
       _connectCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 1400));
 
+      await _udp!.sendButtonConfig(_buttons.map((b) => {
         'name': b.name, 'x': b.touchX, 'y': b.touchY,
         'isHold': b.isHold, 'swipeDir': b.swipeDir,
         'swipeDist': b.swipeDist,
@@ -193,6 +200,7 @@ class _SteeringUIState extends State<SteeringUI>
   void dispose() {
     _connectCtrl.dispose();
     _dotCtrl.dispose();
+    SoundService.dispose();
     _disconnect();
     _ipController.dispose();
     super.dispose();
@@ -220,13 +228,15 @@ class _SteeringUIState extends State<SteeringUI>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Stack(alignment: Alignment.center, children: [
-                    Container(width: 180, height: 180,
+                    Container(
+                      width: 180, height: 180,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.white.withOpacity(0.08),
                           width: 2))),
-                    Container(width: 130, height: 130,
+                    Container(
+                      width: 130, height: 130,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -237,18 +247,21 @@ class _SteeringUIState extends State<SteeringUI>
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Color(0xFF1A1A1A)),
-                      child: const Icon(Icons.gamepad_outlined,
+                      child: const Icon(
+                        Icons.gamepad_outlined,
                         color: Colors.white, size: 42)),
                   ]),
                   const SizedBox(height: 28),
                   const Text('Controller Connected',
-                    style: TextStyle(color: Colors.white,
-                      fontSize: 20, fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      color: Colors.white, fontSize: 20,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 1)),
                   const SizedBox(height: 8),
                   Text(_ipController.text,
-                    style: const TextStyle(color: Colors.white38,
-                      fontSize: 13, fontFamily: 'monospace')),
+                    style: const TextStyle(
+                      color: Colors.white38, fontSize: 13,
+                      fontFamily: 'monospace')),
                 ],
               ),
             ),
@@ -270,7 +283,6 @@ class _SteeringUIState extends State<SteeringUI>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Static logo
                 Container(
                   width: 96, height: 96,
                   decoration: BoxDecoration(
@@ -288,11 +300,11 @@ class _SteeringUIState extends State<SteeringUI>
                 ),
                 const SizedBox(height: 18),
                 const Text('MRB Controller',
-                  style: TextStyle(color: Colors.white,
-                    fontSize: 24, fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    color: Colors.white, fontSize: 24,
+                    fontWeight: FontWeight.bold,
                     letterSpacing: 0.5)),
                 const SizedBox(height: 6),
-                // Only dots animate
                 AnimatedBuilder(
                   animation: _dotAnim,
                   builder: (_, __) {
@@ -374,7 +386,8 @@ class _SteeringUIState extends State<SteeringUI>
                     onPressed: _connect,
                     icon: const Icon(Icons.link),
                     label: const Text('Connect',
-                      style: TextStyle(fontSize: 15,
+                      style: TextStyle(
+                        fontSize: 15,
                         fontWeight: FontWeight.bold)),
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -418,8 +431,6 @@ class _SteeringUIState extends State<SteeringUI>
   // ── CONTROLLER SCREEN ────────────────────────────
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-
-    // Left = touchX < 1080, Right = touchX >= 1080
     final leftBtns  = _buttons
       .where((b) => b.touchX < 1080).toList();
     final rightBtns = _buttons
@@ -430,15 +441,13 @@ class _SteeringUIState extends State<SteeringUI>
       body: SafeArea(
         child: Row(
           children: [
-            // LEFT COLUMN
+            // LEFT
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: leftBtns
-                .map((b) => Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4, horizontal: 6),
-                  child: _buildBtn(b)))
-                .toList(),
+              children: leftBtns.map((b) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4, horizontal: 6),
+                child: _buildBtn(b))).toList(),
             ),
 
             // CENTER
@@ -446,7 +455,6 @@ class _SteeringUIState extends State<SteeringUI>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Top bar
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
@@ -458,8 +466,7 @@ class _SteeringUIState extends State<SteeringUI>
                       const SizedBox(width: 5),
                       Text(_ipController.text,
                         style: const TextStyle(
-                          color: Colors.white24,
-                          fontSize: 10,
+                          color: Colors.white24, fontSize: 10,
                           fontFamily: 'monospace')),
                       const Spacer(),
                       GestureDetector(
@@ -478,8 +485,6 @@ class _SteeringUIState extends State<SteeringUI>
                           color: Colors.white24, size: 18)),
                     ]),
                   ),
-
-                  // Wheel
                   Expanded(
                     child: Center(
                       child: CustomPaint(
@@ -488,8 +493,6 @@ class _SteeringUIState extends State<SteeringUI>
                       ),
                     ),
                   ),
-
-                  // Tilt bar
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       16, 0, 16, 12),
@@ -509,15 +512,13 @@ class _SteeringUIState extends State<SteeringUI>
               ),
             ),
 
-            // RIGHT COLUMN
+            // RIGHT
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: rightBtns
-                .map((b) => Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4, horizontal: 6),
-                  child: _buildBtn(b)))
-                .toList(),
+              children: rightBtns.map((b) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4, horizontal: 6),
+                child: _buildBtn(b))).toList(),
             ),
           ],
         ),
