@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomButton {
@@ -68,7 +69,6 @@ class CustomButton {
 }
 
 // ignore: non_constant_identifier_names
-Color get _unused => const Color(0xFF000000);
 
 List<CustomButton> defaultButtons() => [
   CustomButton(
