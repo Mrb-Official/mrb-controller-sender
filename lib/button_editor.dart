@@ -4,21 +4,23 @@ import 'custom_button_model.dart';
 const _iconOptions = {
   'speed':                Icons.speed,
   'pan_tool':             Icons.pan_tool,
+  'keyboard_arrow_up':    Icons.keyboard_arrow_up,
+  'keyboard_arrow_down':  Icons.keyboard_arrow_down,
   'expand_less':          Icons.expand_less,
   'expand_more':          Icons.expand_more,
   'gamepad':              Icons.gamepad,
   'touch_app':            Icons.touch_app,
   'arrow_upward':         Icons.arrow_upward,
   'arrow_downward':       Icons.arrow_downward,
-  'arrow_back':           Icons.arrow_back,
-  'arrow_forward':        Icons.arrow_forward,
-  'radio_button_checked': Icons.radio_button_checked,
+  'u_turn_left':          Icons.u_turn_left,
+  'swap_vert':            Icons.swap_vert,
   'bolt':                 Icons.bolt,
   'flag':                 Icons.flag,
-  'stars':                Icons.stars,
+  'sports_score':         Icons.sports_score,
 };
 
-IconData iconFromName(String name) => _iconOptions[name] ?? Icons.gamepad;
+IconData iconFromName(String name) =>
+  _iconOptions[name] ?? Icons.gamepad;
 
 const _swipeDirs = ['none', 'up', 'down', 'left', 'right'];
 
@@ -45,18 +47,17 @@ class _ButtonEditorState extends State<ButtonEditor> {
   }
 
   void _editButton(int index) {
-    final btn        = _buttons[index];
-    final nameCtrl   = TextEditingController(text: btn.name);
-    final xCtrl      = TextEditingController(text: btn.touchX.toInt().toString());
-    final yCtrl      = TextEditingController(text: btn.touchY.toInt().toString());
-    final widthCtrl  = TextEditingController(text: btn.uiWidth.toInt().toString());
-    final heightCtrl = TextEditingController(text: btn.uiHeight.toInt().toString());
-    final posXCtrl   = TextEditingController(text: btn.uiPosX.toInt().toString());
-    final posYCtrl   = TextEditingController(text: btn.uiPosY.toInt().toString());
-    final distCtrl   = TextEditingController(text: btn.swipeDist.toInt().toString());
-    String selectedIcon = btn.icon;
-    bool isHold         = btn.isHold;
-    String swipeDir     = btn.swipeDir;
+    final btn       = _buttons[index];
+    final nameCtrl  = TextEditingController(text: btn.name);
+    final txCtrl    = TextEditingController(text: btn.touchX.toInt().toString());
+    final tyCtrl    = TextEditingController(text: btn.touchY.toInt().toString());
+    final wCtrl     = TextEditingController(text: btn.uiWidth.toInt().toString());
+    final hCtrl     = TextEditingController(text: btn.uiHeight.toInt().toString());
+    final distCtrl  = TextEditingController(text: btn.swipeDist.toInt().toString());
+    String icon     = btn.icon;
+    bool isHold     = btn.isHold;
+    String swipeDir = btn.swipeDir;
+    String side     = btn.side;
 
     showDialog(context: context, builder: (_) {
       return StatefulBuilder(builder: (ctx, setS) {
@@ -69,51 +70,94 @@ class _ButtonEditorState extends State<ButtonEditor> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _field(nameCtrl, 'Button Name'),
-                const SizedBox(height: 8),
-
-                _sec('Touch Coordinates (Game Screen)'),
+                const SizedBox(height: 10),
+                _label('Touch Coordinates (Game Screen)'),
                 Row(children: [
-                  Expanded(child: _field(xCtrl, 'Touch X', num: true)),
+                  Expanded(child: _field(txCtrl, 'Touch X', num: true)),
                   const SizedBox(width: 12),
-                  Expanded(child: _field(yCtrl, 'Touch Y', num: true)),
+                  Expanded(child: _field(tyCtrl, 'Touch Y', num: true)),
                 ]),
-                const SizedBox(height: 8),
-
-                _sec('Button Size (UI)'),
+                const SizedBox(height: 10),
+                _label('Button Size (UI)'),
                 Row(children: [
-                  Expanded(child: _field(widthCtrl,  'Width',  num: true)),
+                  Expanded(child: _field(wCtrl, 'Width', num: true)),
                   const SizedBox(width: 12),
-                  Expanded(child: _field(heightCtrl, 'Height', num: true)),
+                  Expanded(child: _field(hCtrl, 'Height', num: true)),
                 ]),
-                const SizedBox(height: 8),
-
-                _sec('Button Position (UI) — from top-left'),
+                const SizedBox(height: 10),
+                _label('Screen Side'),
                 Row(children: [
-                  Expanded(child: _field(posXCtrl, 'Pos X', num: true)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _field(posYCtrl, 'Pos Y', num: true)),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setS(() => side = 'left'),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: side == 'left'
+                            ? Colors.white : const Color(0xFF222222),
+                          border: Border.all(
+                            color: side == 'left'
+                              ? Colors.white : Colors.white24)),
+                        child: Text('LEFT',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: side == 'left'
+                              ? Colors.black : Colors.white54,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setS(() => side = 'right'),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: side == 'right'
+                            ? Colors.white : const Color(0xFF222222),
+                          border: Border.all(
+                            color: side == 'right'
+                              ? Colors.white : Colors.white24)),
+                        child: Text('RIGHT',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: side == 'right'
+                              ? Colors.black : Colors.white54,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                      ),
+                    ),
+                  ),
                 ]),
-                const SizedBox(height: 8),
-
-                _sec('Swipe Direction (for gear change etc)'),
+                const SizedBox(height: 10),
+                _label('Swipe Direction'),
                 Wrap(
                   spacing: 6, runSpacing: 6,
-                  children: _swipeDirs.map((dir) {
-                    final sel = swipeDir == dir;
+                  children: _swipeDirs.map((d) {
+                    final sel = swipeDir == d;
                     return GestureDetector(
-                      onTap: () => setS(() => swipeDir = dir),
-                      child: Container(
+                      onTap: () => setS(() => swipeDir = d),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: sel ? Colors.white : Colors.transparent,
+                          color: sel
+                            ? Colors.white : const Color(0xFF222222),
                           border: Border.all(
                             color: sel ? Colors.white : Colors.white24)),
-                        child: Text(dir,
+                        child: Text(d,
                           style: TextStyle(
                             color: sel ? Colors.black : Colors.white54,
-                            fontSize: 12, fontWeight: FontWeight.w600)),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
                       ),
                     );
                   }).toList(),
@@ -122,17 +166,17 @@ class _ButtonEditorState extends State<ButtonEditor> {
                   const SizedBox(height: 8),
                   _field(distCtrl, 'Swipe Distance (px)', num: true),
                 ],
-                const SizedBox(height: 12),
-
-                _sec('Icon'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
+                _label('Icon'),
+                const SizedBox(height: 6),
                 Wrap(
                   spacing: 8, runSpacing: 8,
                   children: _iconOptions.entries.map((e) {
-                    final sel = selectedIcon == e.key;
+                    final sel = icon == e.key;
                     return GestureDetector(
-                      onTap: () => setS(() => selectedIcon = e.key),
-                      child: Container(
+                      onTap: () => setS(() => icon = e.key),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -146,11 +190,11 @@ class _ButtonEditorState extends State<ButtonEditor> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 10),
                 Row(children: [
                   const Text('Hold?',
-                    style: TextStyle(color: Colors.white54)),
+                    style: TextStyle(
+                      color: Colors.white54, fontSize: 13)),
                   const Spacer(),
                   Switch(
                     value: isHold,
@@ -171,21 +215,23 @@ class _ButtonEditorState extends State<ButtonEditor> {
                   _buttons[index] = CustomButton(
                     id:        btn.id,
                     name:      nameCtrl.text.toUpperCase(),
-                    icon:      selectedIcon,
+                    icon:      icon,
                     isHold:    isHold,
-                    touchX:    double.tryParse(xCtrl.text)      ?? btn.touchX,
-                    touchY:    double.tryParse(yCtrl.text)      ?? btn.touchY,
-                    uiWidth:   double.tryParse(widthCtrl.text)  ?? btn.uiWidth,
-                    uiHeight:  double.tryParse(heightCtrl.text) ?? btn.uiHeight,
-                    uiPosX:    double.tryParse(posXCtrl.text)   ?? btn.uiPosX,
-                    uiPosY:    double.tryParse(posYCtrl.text)   ?? btn.uiPosY,
+                    touchX:    double.tryParse(txCtrl.text)   ?? btn.touchX,
+                    touchY:    double.tryParse(tyCtrl.text)   ?? btn.touchY,
+                    uiWidth:   double.tryParse(wCtrl.text)    ?? btn.uiWidth,
+                    uiHeight:  double.tryParse(hCtrl.text)    ?? btn.uiHeight,
+                    uiPosX:    btn.uiPosX,   // SAME rehne do
+                    uiPosY:    btn.uiPosY,   // SAME rehne do
                     swipeDir:  swipeDir,
-                    swipeDist: double.tryParse(distCtrl.text)   ?? btn.swipeDist,
+                    swipeDist: double.tryParse(distCtrl.text) ?? btn.swipeDist,
+                    side:      side,
                   );
                 });
                 Navigator.pop(ctx);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white),
               child: const Text('Save',
                 style: TextStyle(color: Colors.black))),
           ],
@@ -194,17 +240,17 @@ class _ButtonEditorState extends State<ButtonEditor> {
     });
   }
 
-  Widget _sec(String text) => Padding(
-    padding: const EdgeInsets.only(top: 4, bottom: 2),
+  Widget _label(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(text,
-        style: const TextStyle(color: Colors.white38, fontSize: 11))),
-  );
+        style: const TextStyle(
+          color: Colors.white38, fontSize: 11))));
 
   Widget _field(TextEditingController ctrl, String label,
-      {bool num = false}) {
-    return TextField(
+      {bool num = false}) =>
+    TextField(
       controller: ctrl,
       keyboardType: num ? TextInputType.number : TextInputType.text,
       style: const TextStyle(color: Colors.white),
@@ -212,9 +258,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white38),
         enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white24))),
-    );
-  }
+          borderSide: BorderSide(color: Colors.white24))));
 
   @override
   Widget build(BuildContext context) {
@@ -229,19 +273,24 @@ class _ButtonEditorState extends State<ButtonEditor> {
           TextButton(
             onPressed: _save,
             child: const Text('SAVE',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold))),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
             _buttons.add(CustomButton(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              name: 'NEW', icon: 'gamepad', isHold: true,
-              touchX: 500, touchY: 500,
-              uiWidth: 80, uiHeight: 64,
-              uiPosX: 100, uiPosY: 100,
+              id:       DateTime.now().millisecondsSinceEpoch.toString(),
+              name:     'NEW',
+              icon:     'gamepad',
+              isHold:   true,
+              touchX:   500, touchY: 500,
+              uiWidth:  110, uiHeight: 90,
+              uiPosX:   0,   uiPosY: 0,
               swipeDir: 'none', swipeDist: 100,
+              side:     'right',
             ));
           });
         },
@@ -257,41 +306,63 @@ class _ButtonEditorState extends State<ButtonEditor> {
             padding: const EdgeInsets.all(12),
             itemCount: _buttons.length,
             itemBuilder: (_, i) {
-              final btn = _buttons[i];
+              final b = _buttons[i];
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white12)),
                 child: Row(children: [
-                  Icon(iconFromName(btn.icon), color: Colors.white70, size: 28),
+                  Icon(iconFromName(b.icon),
+                    color: Colors.white70, size: 26),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(btn.name,
-                          style: const TextStyle(color: Colors.white,
-                            fontSize: 15, fontWeight: FontWeight.bold)),
+                        Text(b.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
                         Text(
-                          'Touch:${btn.touchX.toInt()},${btn.touchY.toInt()}'
-                          '  ${btn.uiWidth.toInt()}×${btn.uiHeight.toInt()}'
-                          '  Pos:${btn.uiPosX.toInt()},${btn.uiPosY.toInt()}'
-                          '  Swipe:${btn.swipeDir}'
-                          '  ${btn.isHold ? "Hold" : "Tap"}',
+                          '${b.side.toUpperCase()}  '
+                          'Touch:${b.touchX.toInt()},${b.touchY.toInt()}  '
+                          '${b.uiWidth.toInt()}×${b.uiHeight.toInt()}  '
+                          'Swipe:${b.swipeDir}  '
+                          '${b.isHold ? "Hold" : "Tap"}',
                           style: const TextStyle(
                             color: Colors.white38, fontSize: 10)),
                       ],
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white24)),
+                    child: Text(
+                      b.side == 'left' ? 'L' : 'R',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 4),
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white38),
+                    icon: const Icon(Icons.edit,
+                      color: Colors.white38, size: 20),
                     onPressed: () => _editButton(i)),
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => setState(() => _buttons.removeAt(i))),
+                    icon: const Icon(Icons.delete,
+                      color: Colors.red, size: 20),
+                    onPressed: () =>
+                      setState(() => _buttons.removeAt(i))),
                 ]),
               );
             },
