@@ -52,14 +52,30 @@ class CustomButton {
     swipeDir:  j['swipeDir']  ?? 'none',
     swipeDist: (j['swipeDist'] ?? 100.0).toDouble(),
   );
+
+  // Button ke hisab se color
+  Color get pressColor {
+    switch (name.toUpperCase()) {
+      case 'GAS':     return const Color(0xFF00C853); // green
+      case 'BRAKE':   return const Color(0xFFD50000); // red
+      case 'REVERSE': return const Color(0xFFFF6D00); // orange
+      case 'FRONT':   return const Color(0xFF00B0FF); // blue
+      case 'GEAR+':   return const Color(0xFF00C853); // green
+      case 'GEAR-':   return const Color(0xFFFF6D00); // orange
+      default:        return const Color(0xFFFFFFFF); // white
+    }
+  }
 }
+
+// ignore: non_constant_identifier_names
+Color get _unused => const Color(0xFF000000);
 
 List<CustomButton> defaultButtons() => [
   CustomButton(
     id: 'brake', name: 'BRAKE', icon: 'pan_tool',
     isHold: true,
     touchX: 1933, touchY: 927,
-    uiWidth: 90,  uiHeight: 70,
+    uiWidth: 170, uiHeight: 200,
     uiPosX: 10,   uiPosY: 160,
     swipeDir: 'none', swipeDist: 0,
   ),
@@ -67,12 +83,12 @@ List<CustomButton> defaultButtons() => [
     id: 'gas', name: 'GAS', icon: 'speed',
     isHold: true,
     touchX: 2192, touchY: 850,
-    uiWidth: 90,  uiHeight: 70,
-    uiPosX: 560,  uiPosY: 160,
+    uiWidth: 170, uiHeight: 200,
+    uiPosX: 650,  uiPosY: 160,
     swipeDir: 'none', swipeDist: 0,
   ),
   CustomButton(
-    id: 'gear_up', name: 'GEAR+', icon: 'expand_less',
+    id: 'reverse', name: 'REVERSE', icon: 'keyboard_arrow_up',
     isHold: false,
     touchX: 2244, touchY: 592,
     uiWidth: 80,  uiHeight: 60,
@@ -80,17 +96,17 @@ List<CustomButton> defaultButtons() => [
     swipeDir: 'up', swipeDist: 250,
   ),
   CustomButton(
-    id: 'gear_down', name: 'GEAR-', icon: 'expand_more',
+    id: 'front', name: 'FRONT', icon: 'keyboard_arrow_down',
     isHold: false,
     touchX: 2244, touchY: 400,
     uiWidth: 80,  uiHeight: 60,
-    uiPosX: 560,  uiPosY: 250,
+    uiPosX: 700,  uiPosY: 80,
     swipeDir: 'down', swipeDist: 250,
   ),
 ];
 
 class ButtonStorage {
-  static const _key = 'custom_buttons_v4';
+  static const _key = 'custom_buttons_v5';
 
   static Future<List<CustomButton>> load() async {
     final prefs = await SharedPreferences.getInstance();

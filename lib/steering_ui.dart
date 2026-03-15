@@ -61,7 +61,6 @@ class _SteeringUIState extends State<SteeringUI> {
           }
         }
       }
-      setState(() => _scanStatus = 'Scanning $subnet.x...');
       bool found = false;
       for (int i = 1; i < 255 && !found; i++) {
         final ip = '$subnet.$i';
@@ -74,9 +73,7 @@ class _SteeringUIState extends State<SteeringUI> {
         } catch (_) {}
       }
       if (!found) setState(() => _scanStatus = 'Not found');
-    } catch (e) {
-      setState(() => _scanStatus = 'Error');
-    }
+    } catch (_) { setState(() => _scanStatus = 'Error'); }
     setState(() => _scanning = false);
   }
 
@@ -89,12 +86,9 @@ class _SteeringUIState extends State<SteeringUI> {
     await _udp!.connect();
     if (_udp!.isConnected) {
       await Future.delayed(const Duration(milliseconds: 300));
-      _udp!.sendButtonConfig(_buttons.map((b) => {
-        'name': b.name,
-        'x': b.touchX,
-        'y': b.touchY,
-        'isHold': b.isHold,
-        'swipeDir': b.swipeDir,
+      await _udp!.sendButtonConfig(_buttons.map((b) => {
+        'name': b.name, 'x': b.touchX, 'y': b.touchY,
+        'isHold': b.isHold, 'swipeDir': b.swipeDir,
         'swipeDist': b.swipeDist,
       }).toList());
       _sensor.start();
@@ -115,24 +109,30 @@ class _SteeringUIState extends State<SteeringUI> {
 
   void _onDown(CustomButton btn) {
     setState(() => _pressed[btn.id] = true);
-    if (btn.isHold) {
-      _udp?.sendCustomButton(btn.name, true, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
+    if (btn.swipeDir != 'none') {
+      _udp?.sendCustomButton(btn.name, true,
+        swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
+    } else if (btn.isHold) {
+      _udp?.sendCustomButton(btn.name, true);
     } else {
-      // Tap or swipe = send ON then OFF
-      _udp?.sendCustomButton(btn.name, true, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
-      Future.delayed(const Duration(milliseconds: 100),
-        () => _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist));
+      _udp?.sendCustomButton(btn.name, true);
+      Future.delayed(const Duration(milliseconds: 80),
+        () => _udp?.sendCustomButton(btn.name, false));
     }
   }
 
   void _onUp(CustomButton btn) {
     setState(() => _pressed[btn.id] = false);
-    if (btn.isHold) _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
+    if (btn.isHold && btn.swipeDir == 'none') {
+      _udp?.sendCustomButton(btn.name, false);
+    }
   }
 
   void _onCancel(CustomButton btn) {
     setState(() => _pressed[btn.id] = false);
-    if (btn.isHold) _udp?.sendCustomButton(btn.name, false, swipeDir: btn.swipeDir, swipeDist: btn.swipeDist);
+    if (btn.isHold && btn.swipeDir == 'none') {
+      _udp?.sendCustomButton(btn.name, false);
+    }
   }
 
   @override
@@ -153,13 +153,23 @@ class _SteeringUIState extends State<SteeringUI> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // App logo SVG style
                 Container(
-                  width: 80, height: 80,
+                  width: 100, height: 100,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 2)),
-                  child: const Icon(Icons.airplanemode_active,
-                    color: Colors.white, size: 40),
+                    color: const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white12)),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Image.asset(
+                      'assets/icon.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.sports_esports,
+                        color: Colors.white, size: 52),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const Text('MRB Controller',
@@ -204,7 +214,8 @@ class _SteeringUIState extends State<SteeringUI> {
                         ? const SizedBox(width: 18, height: 18,
                             child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.search, color: Colors.white54, size: 22),
+                        : const Icon(Icons.search,
+                            color: Colors.white54, size: 22),
                     ),
                   ),
                 ]),
@@ -212,7 +223,8 @@ class _SteeringUIState extends State<SteeringUI> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(_scanStatus,
-                      style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                      style: const TextStyle(
+                        color: Colors.white38, fontSize: 11)),
                   ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -221,7 +233,8 @@ class _SteeringUIState extends State<SteeringUI> {
                     onPressed: _connect,
                     icon: const Icon(Icons.link),
                     label: const Text('Connect',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
@@ -233,10 +246,12 @@ class _SteeringUIState extends State<SteeringUI> {
                 TextButton.icon(
                   onPressed: () async {
                     await Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ButtonEditor()));
+                      MaterialPageRoute(
+                        builder: (_) => const ButtonEditor()));
                     _loadButtons();
                   },
-                  icon: const Icon(Icons.tune, color: Colors.white24, size: 16),
+                  icon: const Icon(Icons.tune,
+                    color: Colors.white24, size: 16),
                   label: const Text('Configure Buttons',
                     style: TextStyle(color: Colors.white24, fontSize: 12)),
                 ),
@@ -251,43 +266,56 @@ class _SteeringUIState extends State<SteeringUI> {
   // ── CONTROLLER SCREEN ────────────────────────────
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
+    final leftBtns  = _buttons.where((b) => b.touchX < 1080).toList();
+    final rightBtns = _buttons.where((b) => b.touchX >= 1080).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Stack(
+        child: Row(
           children: [
-            // Center - Steering wheel
-            Center(
+            // LEFT
+            SizedBox(
+              width: 200,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                children: leftBtns.map((b) => _buildBtn(b)).toList(),
+              ),
+            ),
+
+            // CENTER
+            Expanded(
+              child: Column(
                 children: [
-                  // Top bar
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
                     child: Row(children: [
                       Container(width: 6, height: 6,
                         decoration: const BoxDecoration(
-                          shape: BoxShape.circle, color: Color(0xFF00FF88))),
+                          shape: BoxShape.circle,
+                          color: Color(0xFF00FF88))),
                       const SizedBox(width: 4),
                       Text(_ipController.text,
-                        style: const TextStyle(color: Colors.white24, fontSize: 10)),
+                        style: const TextStyle(
+                          color: Colors.white24, fontSize: 10)),
                       const Spacer(),
                       GestureDetector(
                         onTap: () async {
                           await Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const ButtonEditor()));
+                            MaterialPageRoute(
+                              builder: (_) => const ButtonEditor()));
                           _loadButtons();
                         },
-                        child: const Icon(Icons.tune, color: Colors.white24, size: 16)),
+                        child: const Icon(Icons.tune,
+                          color: Colors.white24, size: 16)),
                       const SizedBox(width: 12),
                       GestureDetector(
                         onTap: _disconnect,
-                        child: const Icon(Icons.link_off, color: Colors.white24, size: 16)),
+                        child: const Icon(Icons.link_off,
+                          color: Colors.white24, size: 16)),
                     ]),
                   ),
-
-                  // Steering wheel
                   Expanded(
                     child: Center(
                       child: CustomPaint(
@@ -296,8 +324,6 @@ class _SteeringUIState extends State<SteeringUI> {
                       ),
                     ),
                   ),
-
-                  // Tilt bar
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     child: ClipRRect(
@@ -316,49 +342,82 @@ class _SteeringUIState extends State<SteeringUI> {
               ),
             ),
 
-            // Buttons - Stack Positioned
-            ..._buttons.map((btn) => _buildPositionedBtn(btn)),
+            // RIGHT
+            SizedBox(
+              width: 200,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: rightBtns.map((b) => _buildBtn(b)).toList(),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPositionedBtn(CustomButton btn) {
+  Widget _buildBtn(CustomButton btn) {
     final pressed = _pressed[btn.id] ?? false;
-    return Positioned(
-      left: btn.uiPosX,
-      top: btn.uiPosY,
-      child: GestureDetector(
-        onTapDown: (_) => _onDown(btn),
-        onTapUp: (_) => _onUp(btn),
-        onTapCancel: () => _onCancel(btn),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 60),
-          width: btn.uiWidth,
-          height: btn.uiHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: pressed ? Colors.white : const Color(0xFF1A1A1A),
-            border: Border.all(
-              color: pressed ? Colors.white : Colors.white24)),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(iconFromName(btn.icon),
-                color: pressed ? Colors.black : Colors.white54,
-                size: btn.uiHeight * 0.38),
-              const SizedBox(height: 2),
-              Text(btn.name,
-                style: TextStyle(
-                  color: pressed ? Colors.black : Colors.white38,
-                  fontSize: 8, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis),
-            ],
-          ),
+    final pressColor = btn.pressColor;
+
+    return GestureDetector(
+      onTapDown: (_) => _onDown(btn),
+      onTapUp: (_) => _onUp(btn),
+      onTapCancel: () => _onCancel(btn),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        width:  btn.uiWidth,
+        height: btn.uiHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: pressed
+            ? pressColor.withOpacity(0.15)
+            : const Color(0xFF111111),
+          border: Border.all(
+            color: pressed ? pressColor : Colors.white12,
+            width: pressed ? 2 : 1)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(_getIcon(btn.icon),
+              color: pressed ? pressColor : Colors.white38,
+              size: btn.uiHeight * 0.35),
+            const SizedBox(height: 4),
+            Text(btn.name,
+              style: TextStyle(
+                color: pressed ? pressColor : Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1),
+              overflow: TextOverflow.ellipsis),
+          ],
         ),
       ),
     );
+  }
+
+  IconData _getIcon(String name) {
+    const map = {
+      'speed':               Icons.speed,
+      'pan_tool':            Icons.pan_tool,
+      'keyboard_arrow_up':   Icons.keyboard_arrow_up,
+      'keyboard_arrow_down': Icons.keyboard_arrow_down,
+      'expand_less':         Icons.expand_less,
+      'expand_more':         Icons.expand_more,
+      'gamepad':             Icons.gamepad,
+      'touch_app':           Icons.touch_app,
+      'arrow_upward':        Icons.arrow_upward,
+      'arrow_downward':      Icons.arrow_downward,
+      'arrow_back':          Icons.arrow_back,
+      'arrow_forward':       Icons.arrow_forward,
+      'bolt':                Icons.bolt,
+      'flag':                Icons.flag,
+      'sports_score':        Icons.sports_score,
+      'u_turn_left':         Icons.u_turn_left,
+      'swap_vert':           Icons.swap_vert,
+    };
+    return map[name] ?? Icons.gamepad;
   }
 }
 
