@@ -28,7 +28,7 @@ class TiltSteeringApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF0A0A0A),
       ),
-      home: const SteeringUI(),
+      home: SteeringUI(),
     );
   }
 }
