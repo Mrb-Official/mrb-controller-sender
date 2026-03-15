@@ -103,7 +103,6 @@ class _SteeringUIState extends State<SteeringUI>
         }
       }
       bool found = false;
-      for (int i = 1; i < 255 && !found; i++) {
         final ip = '$subnet.$i';
         try {
           final socket = await Socket.connect(ip, 9876,
@@ -116,7 +115,6 @@ class _SteeringUIState extends State<SteeringUI>
           found = true;
         } catch (_) {}
       }
-      if (!found) setState(() => _scanStatus = 'Not found');
     } catch (_) { setState(() => _scanStatus = 'Error'); }
     setState(() => _scanning = false);
   }
@@ -127,8 +125,6 @@ class _SteeringUIState extends State<SteeringUI>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('receiver_ip', ip);
     _udp = UdpSender(receiverIp: ip);
-    await _udp!.connect();
-    if (_udp!.isConnected) {
       HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 100));
       HapticFeedback.heavyImpact();
@@ -137,7 +133,6 @@ class _SteeringUIState extends State<SteeringUI>
       _connectCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 1400));
 
-      await _udp!.sendButtonConfig(_buttons.map((b) => {
         'name': b.name, 'x': b.touchX, 'y': b.touchY,
         'isHold': b.isHold, 'swipeDir': b.swipeDir,
         'swipeDist': b.swipeDist,
