@@ -432,9 +432,9 @@ class _SteeringUIState extends State<SteeringUI>
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
     final leftBtns  = _buttons
-      .where((b) => b.touchX < 1080).toList();
+      .where((b) => b.side == 'left').toList();
     final rightBtns = _buttons
-      .where((b) => b.touchX >= 1080).toList();
+      .where((b) => b.side != 'left').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
