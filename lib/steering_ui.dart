@@ -418,91 +418,149 @@ class _SteeringUIState extends State<SteeringUI>
 
   Widget _buildController() {
     final angle = (_tilt / 10.0 * 90.0).clamp(-90.0, 90.0);
-    final leftBtns  = _buttons.where((b) => b.side == 'left').toList();
+    final leftBtns = _buttons.where((b) => b.side == 'left').toList();
     final rightBtns = _buttons.where((b) => b.side != 'left').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Row(
+        child: Stack(
           children: [
-            // LEFT
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: leftBtns.map((b) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 4, horizontal: 6),
-                child: _buildBtn(b))).toList(),
+            // Center wheel area
+            Center(
+              child: Container(
+                width: 200,
+                height: 200,
+                child: CustomPaint(
+                  size: const Size(200, 200),
+                  painter: _WheelPainter(angle: angle),
+                ),
+              ),
             ),
-
-            // CENTER
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            
+            // Top bar with controls
+            Positioned(
+              top: 8,
+              left: 16,
+              right: 16,
+              child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                    child: Row(children: [
-                      Container(width: 6, height: 6,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF00FF88))),
-                      const SizedBox(width: 5),
-                      Text(_ipController.text,
-                        style: const TextStyle(
-                          color: Colors.white24, fontSize: 10,
-                          fontFamily: 'monospace')),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(context,
-                            MaterialPageRoute(
-                              builder: (_) => const ButtonEditor()));
-                          _loadButtons();
-                        },
-                        child: const Icon(Icons.tune,
-                          color: Colors.white24, size: 18)),
-                      const SizedBox(width: 14),
-                      GestureDetector(
-                        onTap: _disconnect,
-                        child: const Icon(Icons.link_off,
-                          color: Colors.white24, size: 18)),
-                    ]),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: CustomPaint(
-                        size: const Size(200, 200),
-                        painter: _WheelPainter(angle: angle),
-                      ),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF00FF88),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: (_tilt.clamp(-10.0,10.0)+10)/20,
-                        minHeight: 5,
-                        backgroundColor: const Color(0xFF1A1A1A),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color.lerp(Colors.blue, Colors.orange,
-                            (_tilt.clamp(-10.0,10.0)+10)/20)!),
-                      ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _ipController.text,
+                    style: const TextStyle(
+                      color: Colors.white24,
+                      fontSize: 10,
+                      fontFamily: 'monospace',
                     ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ButtonEditor(),
+                        ),
+                      );
+                      _loadButtons();
+                    },
+                    child: const Icon(Icons.tune, color: Colors.white24, size: 18),
+                  ),
+                  const SizedBox(width: 14),
+                  GestureDetector(
+                    onTap: _disconnect,
+                    child: const Icon(Icons.link_off, color: Colors.white24, size: 18),
                   ),
                 ],
               ),
             ),
-
-            // RIGHT
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: rightBtns.map((b) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 4, horizontal: 6),
-                child: _buildBtn(b))).toList(),
+            
+            // Left side buttons - positioned dynamically
+            ...leftBtns.map((b) {
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = constraints.maxWidth;
+                  final screenHeight = constraints.maxHeight;
+                  
+                  // Calculate position based on uiPosX and uiPosY
+                  // For left side, base X is left edge + padding + offset
+                  double left = 16 + b.uiPosX;
+                  
+                  // Center Y based on screen height with offset
+                  double top = (screenHeight / 2) - (b.uiHeight / 2) + b.uiPosY;
+                  
+                  // Ensure button stays within screen bounds
+                  left = left.clamp(8.0, screenWidth / 2 - b.uiWidth - 8);
+                  top = top.clamp(8.0, screenHeight - b.uiHeight - 8);
+                  
+                  return Positioned(
+                    left: left,
+                    top: top,
+                    child: _buildBtn(b),
+                  );
+                },
+              );
+            }).toList(),
+            
+            // Right side buttons - positioned dynamically
+            ...rightBtns.map((b) {
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = constraints.maxWidth;
+                  final screenHeight = constraints.maxHeight;
+                  
+                  // For right side, position from right edge with offset
+                  // Negative uiPosX moves left from right edge, positive moves right
+                  double right = 16 - b.uiPosX;
+                  
+                  // Center Y based on screen height with offset
+                  double top = (screenHeight / 2) - (b.uiHeight / 2) + b.uiPosY;
+                  
+                  // Calculate left position for Positioned widget
+                  double left = screenWidth - b.uiWidth - right;
+                  
+                  // Ensure button stays within screen bounds
+                  left = left.clamp(screenWidth / 2, screenWidth - b.uiWidth - 8);
+                  top = top.clamp(8.0, screenHeight - b.uiHeight - 8);
+                  
+                  return Positioned(
+                    left: left,
+                    top: top,
+                    child: _buildBtn(b),
+                  );
+                },
+              );
+            }).toList(),
+            
+            // Bottom progress bar
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 12,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
+                  minHeight: 5,
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Color.lerp(
+                      Colors.blue,
+                      Colors.orange,
+                      (_tilt.clamp(-10.0, 10.0) + 10) / 20,
+                    )!,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -522,30 +580,38 @@ class _SteeringUIState extends State<SteeringUI>
       onTapCancel: () => _onCancel(btn),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 60),
-        width: w, height: h,
+        width: w,
+        height: h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: pressed
-            ? pressColor.withOpacity(0.15)
-            : const Color(0xFF111111),
+              ? pressColor.withOpacity(0.15)
+              : const Color(0xFF111111),
           border: Border.all(
             color: pressed ? pressColor : Colors.white12,
-            width: pressed ? 2 : 1)),
+            width: pressed ? 2 : 1,
+          ),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_getIcon(btn.icon),
+            Icon(
+              _getIcon(btn.icon),
               color: pressed ? pressColor : Colors.white38,
-              size: h * 0.32),
+              size: h * 0.32,
+            ),
             const SizedBox(height: 4),
-            Text(btn.name,
+            Text(
+              btn.name,
               style: TextStyle(
                 color: pressed ? pressColor : Colors.white38,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 1),
+                letterSpacing: 1,
+              ),
               overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -584,30 +650,39 @@ class _WheelPainter extends CustomPainter {
     final cy = size.height / 2;
     final r  = size.width / 2 - 8;
 
+    // Outer circle
     canvas.drawCircle(Offset(cx, cy), r,
       Paint()..color = Colors.white
         ..style = PaintingStyle.stroke..strokeWidth = 8);
+    
+    // Inner circle
     canvas.drawCircle(Offset(cx, cy), r * 0.28,
       Paint()..color = Colors.white
         ..style = PaintingStyle.stroke..strokeWidth = 4);
+    
+    // Arc indicator
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
       -pi / 2, -angle * pi / 180, false,
       Paint()..color = Colors.white30
         ..style = PaintingStyle.stroke..strokeWidth = 6);
 
+    // Spokes
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(-angle * pi / 180);
     final spoke = Paint()
       ..color = Colors.white24
       ..style = PaintingStyle.stroke..strokeWidth = 6;
+    
     for (int i = 0; i < 3; i++) {
       final a = (i * 120 - 90) * pi / 180;
       canvas.drawLine(
         Offset(r * 0.28 * cos(a), r * 0.28 * sin(a)),
         Offset(r * cos(a), r * sin(a)), spoke);
     }
+    
+    // Top indicator
     canvas.drawCircle(Offset(0, -r + 8), 5,
       Paint()..color = Colors.white..style = PaintingStyle.fill);
     canvas.restore();
