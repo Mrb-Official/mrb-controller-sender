@@ -424,78 +424,75 @@ class _SteeringUIState extends State<SteeringUI>
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Center wheel area
-            Center(
-              child: Container(
-                width: 200,
-                height: 200,
-                child: CustomPaint(
-                  size: const Size(200, 200),
-                  painter: _WheelPainter(angle: angle),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = constraints.maxWidth;
+            final screenHeight = constraints.maxHeight;
+
+            return Stack(
+              children: [
+                // Center wheel area
+                Center(
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    child: CustomPaint(
+                      size: const Size(200, 200),
+                      painter: _WheelPainter(angle: angle),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            
-            // Top bar with controls
-            Positioned(
-              top: 8,
-              left: 16,
-              right: 16,
-              child: Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF00FF88),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _ipController.text,
-                    style: const TextStyle(
-                      color: Colors.white24,
-                      fontSize: 10,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ButtonEditor(),
+                
+                // Top bar with controls
+                Positioned(
+                  top: 8,
+                  left: 16,
+                  right: 16,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF00FF88),
                         ),
-                      );
-                      _loadButtons();
-                    },
-                    child: const Icon(Icons.tune, color: Colors.white24, size: 18),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _ipController.text,
+                        style: const TextStyle(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ButtonEditor(),
+                            ),
+                          );
+                          _loadButtons();
+                        },
+                        child: const Icon(Icons.tune, color: Colors.white24, size: 18),
+                      ),
+                      const SizedBox(width: 14),
+                      GestureDetector(
+                        onTap: _disconnect,
+                        child: const Icon(Icons.link_off, color: Colors.white24, size: 18),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  GestureDetector(
-                    onTap: _disconnect,
-                    child: const Icon(Icons.link_off, color: Colors.white24, size: 18),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Left side buttons - positioned dynamically
-            ...leftBtns.map((b) {
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = constraints.maxWidth;
-                  final screenHeight = constraints.maxHeight;
-                  
+                ),
+                
+                // Left side buttons - positioned dynamically
+                ...leftBtns.map((b) {
                   // Calculate position based on uiPosX and uiPosY
-                  // For left side, base X is left edge + padding + offset
                   double left = 16 + b.uiPosX;
-                  
-                  // Center Y based on screen height with offset
                   double top = (screenHeight / 2) - (b.uiHeight / 2) + b.uiPosY;
                   
                   // Ensure button stays within screen bounds
@@ -507,22 +504,12 @@ class _SteeringUIState extends State<SteeringUI>
                     top: top,
                     child: _buildBtn(b),
                   );
-                },
-              );
-            }).toList(),
-            
-            // Right side buttons - positioned dynamically
-            ...rightBtns.map((b) {
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = constraints.maxWidth;
-                  final screenHeight = constraints.maxHeight;
-                  
+                }).toList(),
+                
+                // Right side buttons - positioned dynamically
+                ...rightBtns.map((b) {
                   // For right side, position from right edge with offset
-                  // Negative uiPosX moves left from right edge, positive moves right
                   double right = 16 - b.uiPosX;
-                  
-                  // Center Y based on screen height with offset
                   double top = (screenHeight / 2) - (b.uiHeight / 2) + b.uiPosY;
                   
                   // Calculate left position for Positioned widget
@@ -537,32 +524,32 @@ class _SteeringUIState extends State<SteeringUI>
                     top: top,
                     child: _buildBtn(b),
                   );
-                },
-              );
-            }).toList(),
-            
-            // Bottom progress bar
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 12,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
-                  minHeight: 5,
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Color.lerp(
-                      Colors.blue,
-                      Colors.orange,
-                      (_tilt.clamp(-10.0, 10.0) + 10) / 20,
-                    )!,
+                }).toList(),
+                
+                // Bottom progress bar
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 12,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (_tilt.clamp(-10.0, 10.0) + 10) / 20,
+                      minHeight: 5,
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color.lerp(
+                          Colors.blue,
+                          Colors.orange,
+                          (_tilt.clamp(-10.0, 10.0) + 10) / 20,
+                        )!,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
