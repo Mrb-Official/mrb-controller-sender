@@ -561,11 +561,11 @@ class _SteeringUIState extends State<SteeringUI>
   final w = btn.uiWidth.clamp(60.0, 170.0);
   final h = btn.uiHeight.clamp(50.0, 200.0);
 
-  return GestureDetector(
-    behavior: HitTestBehavior.opaque, // <-- Add this line
-    onTapDown: (_) => _onDown(btn),
-    onTapUp: (_) => _onUp(btn),
-    onTapCancel: () => _onCancel(btn),
+  return Listener(
+    behavior: HitTestBehavior.opaque,
+    onPointerDown: (_) => _onDown(btn),
+    onPointerUp: (_) => _onUp(btn),
+    onPointerCancel: (_) => _onCancel(btn),
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 60),
       width: w,
