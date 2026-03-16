@@ -555,55 +555,57 @@ class _SteeringUIState extends State<SteeringUI>
     );
   }
 
-  Widget _buildBtn(CustomButton btn) {
-    final pressed = _pressed[btn.id] ?? false;
-    final pressColor = btn.pressColor;
-    final w = btn.uiWidth.clamp(60.0, 170.0);
-    final h = btn.uiHeight.clamp(50.0, 200.0);
+ Widget _buildBtn(CustomButton btn) {
+  final pressed = _pressed[btn.id] ?? false;
+  final pressColor = btn.pressColor;
+  final w = btn.uiWidth.clamp(60.0, 170.0);
+  final h = btn.uiHeight.clamp(50.0, 200.0);
 
-    return GestureDetector(
-      onTapDown: (_) => _onDown(btn),
-      onTapUp: (_) => _onUp(btn),
-      onTapCancel: () => _onCancel(btn),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 60),
-        width: w,
-        height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: pressed
-              ? pressColor.withOpacity(0.15)
-              : const Color(0xFF111111),
-          border: Border.all(
-            color: pressed ? pressColor : Colors.white12,
-            width: pressed ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _getIcon(btn.icon),
-              color: pressed ? pressColor : Colors.white38,
-              size: h * 0.32,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              btn.name,
-              style: TextStyle(
-                color: pressed ? pressColor : Colors.white38,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
-              ),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
+  return GestureDetector(
+    behavior: HitTestBehavior.opaque, // <-- Add this line
+    onTapDown: (_) => _onDown(btn),
+    onTapUp: (_) => _onUp(btn),
+    onTapCancel: () => _onCancel(btn),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 60),
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: pressed
+            ? pressColor.withOpacity(0.15)
+            : const Color(0xFF111111),
+        border: Border.all(
+          color: pressed ? pressColor : Colors.white12,
+          width: pressed ? 2 : 1,
         ),
       ),
-    );
-  }
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getIcon(btn.icon),
+            color: pressed ? pressColor : Colors.white38,
+            size: h * 0.32,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            btn.name,
+            style: TextStyle(
+              color: pressed ? pressColor : Colors.white38,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   IconData _getIcon(String name) {
     const map = {
