@@ -78,6 +78,7 @@ class CustomButton {
   }
 }
 
+// Default buttons with updated values
 List<CustomButton> defaultButtons() => [
       CustomButton(
         id: 'brake',
@@ -86,8 +87,8 @@ List<CustomButton> defaultButtons() => [
         isHold: true,
         touchX: 1933,
         touchY: 927,
-        uiWidth: 120,
-        uiHeight: 120,
+        uiWidth: 150,
+        uiHeight: 200,
         uiPosX: -80,
         uiPosY: 0,
         swipeDir: 'none',
@@ -100,8 +101,8 @@ List<CustomButton> defaultButtons() => [
         isHold: true,
         touchX: 2192,
         touchY: 850,
-        uiWidth: 120,
-        uiHeight: 120,
+        uiWidth: 150,
+        uiHeight: 200,
         uiPosX: 80,
         uiPosY: 0,
         swipeDir: 'none',
@@ -116,8 +117,8 @@ List<CustomButton> defaultButtons() => [
         touchY: 592,
         uiWidth: 120,
         uiHeight: 80,
-        uiPosX: 80,
-        uiPosY: -60,
+        uiPosX: -150,
+        uiPosY: -80,
         swipeDir: 'up',
         swipeDist: 250,
         side: 'right',
@@ -131,7 +132,7 @@ List<CustomButton> defaultButtons() => [
         touchY: 400,
         uiWidth: 120,
         uiHeight: 80,
-        uiPosX: 80,
+        uiPosX: -150,
         uiPosY: 60,
         swipeDir: 'down',
         swipeDist: 250,
